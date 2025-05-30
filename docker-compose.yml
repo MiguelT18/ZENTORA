@@ -17,6 +17,22 @@ services:
     networks:
       - zentora-network
 
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: ../../infra/docker/backend/Dockerfile
+    container_name: zentora-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/backend:/app
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=1
+    restart: unless-stopped
+    networks:
+      - zentora-network
+
 networks:
   zentora-network:
     driver: bridge
