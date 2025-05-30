@@ -1,1 +1,104 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/
+.bun
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Production
+build/
+dist/
+out/
+.next/
+*.pyc
+__pycache__/
+
+# Environment Variables
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.python-version
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+# Frontend
+apps/frontend/.next/
+apps/frontend/out/
+apps/frontend/.turbo
+apps/frontend/.vercel
+apps/frontend/build
+apps/frontend/dist
+apps/frontend/coverage
+apps/frontend/storybook-static
+
+# Backend
+apps/backend/*.pyc
+apps/backend/__pycache__/
+apps/backend/.pytest_cache/
+apps/backend/.coverage
+apps/backend/coverage.xml
+apps/backend/.mypy_cache/
+apps/backend/dist/
+apps/backend/build/
+apps/backend/*.egg-info/
+apps/backend/htmlcov/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+tmp/
+
+# Local development
+*.local
+
+# Poetry
+poetry.lock
+.poetry/
+.venv/
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Misc
+.DS_Store
+*.pem
+.env*.local
