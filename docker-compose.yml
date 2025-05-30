@@ -1,13 +1,26 @@
 version: '3.8'
 
 services:
+  nginx:
+    build:
+      context: ./infra/docker/nginx
+      dockerfile: Dockerfile
+    container_name: zentora-nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - zentora-network
+
   frontend:
     build:
       context: ./apps/frontend
       dockerfile: ../../infra/docker/frontend/Dockerfile
     container_name: zentora-frontend
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     volumes:
       - ./apps/frontend:/app
       - /app/node_modules
@@ -22,8 +35,8 @@ services:
       context: ./apps/backend
       dockerfile: ../../infra/docker/backend/Dockerfile
     container_name: zentora-backend
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - ./apps/backend:/app
     environment:
