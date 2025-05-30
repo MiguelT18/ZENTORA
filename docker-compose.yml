@@ -42,10 +42,52 @@ services:
     environment:
       - ENVIRONMENT=development
       - DEBUG=1
+      - DATABASE_URL=postgresql://zentora:zentora@postgres:5432/zentora_db
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - zentora-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: zentora-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=zentora
+      - POSTGRES_PASSWORD=zentora
+      - POSTGRES_DB=zentora_db
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U zentora -d zentora_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zentora-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: zentora-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@zentora.com
+      - PGADMIN_DEFAULT_PASSWORD=zentora
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
     networks:
       - zentora-network
 
 networks:
   zentora-network:
     driver: bridge
+
+volumes:
+  postgres_data:
+  pgadmin_data:

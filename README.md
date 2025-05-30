@@ -44,6 +44,32 @@ ZENTORA/
 3. **Acceder a las Aplicaciones**
    - Frontend: http://localhost
    - API Backend: http://localhost/api
+   - pgAdmin: http://localhost:5050
+     - Email: admin@zentora.com
+     - Password: zentora
+
+## 🗄️ Base de Datos
+
+### Configuración de pgAdmin
+1. Acceder a http://localhost:5050
+2. Iniciar sesión con las credenciales mencionadas arriba
+3. Agregar nuevo servidor:
+   - Name: ZENTORA
+   - Host: postgres
+   - Port: 5432
+   - Database: zentora_db
+   - Username: zentora
+   - Password: zentora
+
+### Migraciones
+```bash
+# Crear nueva migración
+cd apps/backend
+poetry run alembic revision --autogenerate -m "descripción"
+
+# Aplicar migraciones
+poetry run alembic upgrade head
+```
 
 ## 💻 Desarrollo
 
