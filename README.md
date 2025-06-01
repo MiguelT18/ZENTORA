@@ -47,6 +47,7 @@ ZENTORA/
    - pgAdmin: http://localhost:5050
      - Email: admin@zentora.com
      - Password: zentora
+   - RedisInsight: http://localhost:8001
 
 ## 🗄️ Base de Datos
 
@@ -60,6 +61,13 @@ ZENTORA/
    - Database: zentora_db
    - Username: zentora
    - Password: zentora
+
+### Configuración de RedisInsight
+1. Acceder a http://localhost:8001
+2. Agregar nueva conexión Redis:
+   - Host: redis
+   - Port: 6379
+   - Name: ZENTORA-REDIS
 
 ### Migraciones
 ```bash
@@ -100,6 +108,7 @@ make logs          # Ver logs
 make frontend-shell    # Shell del frontend
 make backend-shell     # Shell del backend
 make nginx-shell       # Shell de nginx
+make redis-shell      # Shell de redis
 ```
 
 ## 🔧 Tecnologías Principales
@@ -115,10 +124,12 @@ make nginx-shell       # Shell de nginx
 - Python 3.11
 - Poetry (gestor de paquetes)
 - Black + isort + flake8 (4 espacios)
+- Redis para caché y colas de tareas
 
 ### Infraestructura
 - Docker + Docker Compose
 - Nginx (proxy inverso)
+- Redis + RedisInsight
 - Make (automatización)
 
 ## 📝 Convenciones de Código
@@ -169,6 +180,8 @@ NEXT_PUBLIC_API_URL=http://localhost/api
 ```env
 ENVIRONMENT=development
 DEBUG=1
+DATABASE_URL=postgresql://zentora:zentora@postgres:5432/zentora_db
+REDIS_URL=redis://redis:6379/0
 ```
 
 ## 🤝 Contribuir

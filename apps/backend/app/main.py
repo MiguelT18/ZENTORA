@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .api.v1 import router as v1_router
 
 app = FastAPI(
     title="ZENTORA API",
@@ -15,6 +16,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Incluir el router de v1 directamente
+app.include_router(v1_router)
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
 @app.get("/")
 async def root():

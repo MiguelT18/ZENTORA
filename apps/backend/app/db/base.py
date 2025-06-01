@@ -1,27 +1,12 @@
-from typing import Any
-
+"""
+Database configuration and session management.
+All models should be imported here for Alembic to detect them.
+"""
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
-
-
-class Base(DeclarativeBase):
-    """Base class for SQLAlchemy models."""
-
-    @declared_attr.directive
-    def __tablename__(cls) -> str:
-        """Generate table name automatically."""
-        return cls.__name__.lower()
-
-    def dict(self) -> dict[str, Any]:
-        """Convert model to dictionary."""
-        return {
-            column.name: getattr(self, column.name)
-            for column in self.__table__.columns
-        }
-
+from app.db.base_class import Base  # noqa: F401
+from app.db.models.user import User  # noqa: F401
 
 # Create async engine
 engine = create_async_engine(
