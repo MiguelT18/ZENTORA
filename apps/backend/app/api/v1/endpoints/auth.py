@@ -5,12 +5,7 @@ from app.schemas.user import UserCreate, User
 from app.core.security import get_password_hash
 from app.db.models.user import User as UserModel
 
-router = APIRouter(prefix="/users")
-
-
-@router.get("/")
-async def hello_world():
-    return {"message": "Hello, World!"}
+router = APIRouter(prefix="/auth")
 
 
 @router.post("/register", response_model=User)
