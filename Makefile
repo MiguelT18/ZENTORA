@@ -3,9 +3,46 @@
 # Variables
 DOCKER_COMPOSE = docker compose
 
+# Colores para el mensaje de ayuda
+CYAN := \033[36m
+YELLOW := \033[33m
+GREEN := \033[32m
+RESET := \033[0m
+BOLD := \033[1m
+
 help: ## Mostrar este mensaje de ayuda
-	@echo "Comandos disponibles:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@echo "$(BOLD)🚀 ZENTORA - Comandos Disponibles:$(RESET)"
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)Comandos de Desarrollo:$(RESET)"
+	@echo "  make $(CYAN)dev-frontend$(RESET)        Iniciar solo el frontend en modo desarrollo"
+	@echo "  make $(CYAN)dev-frontend-local$(RESET)  Iniciar frontend en modo desarrollo local con bun"
+	@echo "  make $(CYAN)dev-backend$(RESET)         Iniciar backend y bases de datos en modo desarrollo"
+	@echo "  make $(CYAN)dev-backend-local$(RESET)   Iniciar backend en modo desarrollo local"
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)Gestión de Servicios:$(RESET)"
+	@echo "  make $(CYAN)start$(RESET)               Iniciar todos los servicios"
+	@echo "  make $(CYAN)stop$(RESET)                Detener todos los servicios"
+	@echo "  make $(CYAN)restart$(RESET)             Reiniciar todos los servicios"
+	@echo "  make $(CYAN)logs$(RESET)                Ver logs de todos los servicios"
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)Herramientas de Desarrollo:$(RESET)"
+	@echo "  make $(CYAN)format$(RESET)              Formatear código (frontend y backend)"
+	@echo "  make $(CYAN)lint$(RESET)                Ejecutar linters (frontend y backend)"
+	@echo "  make $(CYAN)test$(RESET)                Ejecutar tests (frontend y backend)"
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)Acceso a Contenedores:$(RESET)"
+	@echo "  make $(CYAN)frontend-shell$(RESET)      Acceder al shell del contenedor frontend"
+	@echo "  make $(CYAN)backend-shell$(RESET)       Acceder al shell del contenedor backend"
+	@echo "  make $(CYAN)nginx-shell$(RESET)         Acceder al shell del contenedor nginx"
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)Configuración:$(RESET)"
+	@echo "  make $(CYAN)setup$(RESET)               Configurar el proyecto por primera vez"
+	@echo "  make $(CYAN)build$(RESET)               Reconstruir todos los servicios"
+	@echo "  make $(CYAN)clean$(RESET)               Limpiar contenedores, imágenes y volúmenes"
+	@echo "  make $(CYAN)install-frontend$(RESET)    Instalar dependencias del frontend"
+	@echo "  make $(CYAN)install-backend$(RESET)     Instalar dependencias del backend"
+	@echo ""
+	@echo "$(BOLD)$(GREEN)Para más detalles sobre un comando, ejecuta: make <comando> --help$(RESET)"
 
 setup: ## Configurar el proyecto por primera vez
 	@./scripts/setup.sh
@@ -47,9 +84,15 @@ nginx-shell: ## Acceder al shell del contenedor nginx
 	$(DOCKER_COMPOSE) exec nginx /bin/sh
 
 dev-frontend: ## Iniciar solo el frontend en modo desarrollo
+	$(DOCKER_COMPOSE) up -d frontend
+
+dev-frontend-local: ## Iniciar solo el frontend en modo desarrollo local con bun
 	cd apps/frontend && bun run dev
 
 dev-backend: ## Iniciar solo el backend en modo desarrollo
+	$(DOCKER_COMPOSE) up -d backend postgres redis pgadmin redisinsight
+
+dev-backend-local: ## Iniciar solo el backend en modo desarrollo local
 	cd apps/backend && poetry run uvicorn app.main:app --reload
 
 install-frontend: ## Instalar dependencias del frontend

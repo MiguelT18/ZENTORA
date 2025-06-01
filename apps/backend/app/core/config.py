@@ -1,5 +1,3 @@
-from typing import Any
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +12,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
 
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
@@ -26,7 +27,10 @@ class Settings(BaseSettings):
     @property
     def async_database_url(self) -> str:
         """Get async database URL."""
-        return self.DATABASE_URL.replace("postgresql://", "postgresql+psycopg://")
+        return self.DATABASE_URL.replace(
+            "postgresql://",
+            "postgresql+psycopg://"
+        )
 
 
 settings = Settings()
