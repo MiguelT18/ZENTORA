@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from app.db.deps import get_db
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, EmailRequest
 from app.core.security import get_password_hash
 from app.db.models.user import User as UserModel
 from fastapi.responses import JSONResponse
@@ -14,6 +14,7 @@ from app.core.email_verification import (
 )
 from app.core.email import send_verification_email
 from sqlalchemy import select, update
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth")
 
@@ -101,4 +102,35 @@ async def cleanup_expired_users(db: AsyncSession = Depends(get_db), redis: Redis
     count = await cleanup_expired_unverified_users(db, redis)
     return JSONResponse(
         content={"message": f"Se eliminaron {count} usuarios no verificados", "deleted_count": count}, status_code=200
+    )
+
+
+@router.post("/resend-verification")
+async def resend_verification_email(
+    email_request: EmailRequest, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
+):
+    """Reenvía el email de verificación para un usuario no verificado."""
+    # Verificar si el usuario existe y no está verificado
+    result = await db.execute(
+        select(UserModel).where(
+            UserModel.email == email_request.email,
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="No se encontró un usuario con este correo electrónico")
+
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="Este usuario ya está verificado")
+
+    # Generar nuevo token de verificación
+    verification_token = await generate_verification_token(redis, email_request.email)
+
+    # Enviar nuevo email de verificación
+    await send_verification_email(email_request.email, verification_token)
+
+    return JSONResponse(
+        content={"message": "Se ha enviado un nuevo correo de verificación", "email": email_request.email},
+        status_code=200,
     )

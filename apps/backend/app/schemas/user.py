@@ -39,3 +39,7 @@ class User(UserInDBBase):
 
 class UserInDB(UserInDBBase):
     password: str
+
+
+class EmailRequest(BaseModel):
+    email: str
