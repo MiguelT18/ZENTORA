@@ -22,55 +22,96 @@ from app.core.email import send_verification_email
 from sqlalchemy import select, update
 from datetime import datetime, UTC
 from uuid import UUID
+import logging
 
 router = APIRouter(prefix="/auth")
+
+logger = logging.getLogger(__name__)
 
 
 @router.post("/register")
 async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)):
-    # Verificar si el email ya existe
-    result = await db.execute(UserModel.__table__.select().where(UserModel.email == user_in.email))
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
+    """Endpoint para registrar un nuevo usuario."""
+    logger.info(f"Iniciando proceso de registro para {user_in.email}")
 
-    # Crear el nuevo usuario
-    db_user = UserModel(
-        email=user_in.email,
-        full_name=user_in.full_name,
-        password=get_password_hash(user_in.password),
-        role=user_in.role,
-        bio=user_in.bio,
-        avatar_url=user_in.avatar_url,
-        is_verified=False,  # El usuario comienza sin verificar
-    )
+    try:
+        # 1. Verificar si el email ya existe
+        logger.debug(f"Verificando si el email {user_in.email} ya existe")
+        result = await db.execute(UserModel.__table__.select().where(UserModel.email == user_in.email))
+        if result.scalar_one_or_none():
+            logger.warning(f"Intento de registro con email existente: {user_in.email}")
+            raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
 
-    db.add(db_user)
-    await db.commit()
-    await db.refresh(db_user)
+        # 2. Generar token de verificación
+        logger.debug("Generando token de verificación")
+        verification_token = await generate_verification_token(redis, user_in.email)
+        logger.info(f"Token de verificación generado para {user_in.email}")
 
-    # Generar token de verificación
-    verification_token = await generate_verification_token(redis, user_in.email)
+        # 3. Intentar enviar el correo ANTES de crear el usuario
+        logger.debug(f"Intentando enviar correo de verificación a {user_in.email}")
+        email_sent = False
+        try:
+            await send_verification_email(user_in.email, verification_token)
+            email_sent = True
+            logger.info(f"Correo de verificación enviado exitosamente a {user_in.email}")
+        except Exception as e:
+            logger.error(f"Error al enviar correo de verificación: {str(e)}")
+            await redis.delete(f"email_verification:{verification_token}")
+            raise HTTPException(status_code=500, detail=f"Error al enviar el correo de verificación: {str(e)}")
 
-    # Enviar email de verificación
-    await send_verification_email(user_in.email, verification_token)
+        if not email_sent:
+            logger.error("El correo no se envió pero no se detectó ninguna excepción")
+            await redis.delete(f"email_verification:{verification_token}")
+            raise HTTPException(status_code=500, detail="No se pudo enviar el correo de verificación")
 
-    success_msg = "Usuario creado exitosamente. Por favor, verifica tu correo electrónico."
+        # 4. Solo si el correo se envió correctamente, crear el usuario
+        logger.debug("Creando usuario en la base de datos")
+        try:
+            db_user = UserModel(
+                email=user_in.email,
+                full_name=user_in.full_name,
+                password=get_password_hash(user_in.password),
+                role=user_in.role,
+                bio=user_in.bio,
+                avatar_url=user_in.avatar_url,
+                is_verified=False,
+            )
 
-    # Crear respuesta personalizada
-    response_data = {
-        "message": success_msg,
-        "user": {
-            "id": str(db_user.id),
-            "email": db_user.email,
-            "full_name": db_user.full_name,
-            "role": db_user.role,
-            "bio": db_user.bio,
-            "avatar_url": db_user.avatar_url,
-            "is_verified": db_user.is_verified,
-        },
-    }
+            db.add(db_user)
+            await db.commit()
+            await db.refresh(db_user)
+            logger.info(f"Usuario creado exitosamente: {db_user.id}")
 
-    return JSONResponse(content=response_data, status_code=201)
+        except Exception as db_error:
+            logger.error(f"Error al crear usuario en la base de datos: {str(db_error)}")
+            await redis.delete(f"email_verification:{verification_token}")
+            raise HTTPException(
+                status_code=500, detail=f"Error al crear el usuario en la base de datos: {str(db_error)}"
+            )
+
+        return JSONResponse(
+            content={
+                "message": "Usuario creado exitosamente. Por favor, verifica tu correo electrónico.",
+                "user": {
+                    "id": str(db_user.id),
+                    "email": db_user.email,
+                    "full_name": db_user.full_name,
+                    "role": db_user.role,
+                    "bio": db_user.bio,
+                    "avatar_url": db_user.avatar_url,
+                    "is_verified": db_user.is_verified,
+                },
+            },
+            status_code=201,
+        )
+
+    except HTTPException as http_error:
+        logger.error(f"Error HTTP durante el registro: {http_error.detail}")
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado durante el registro: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail=f"Error inesperado durante el proceso de registro: {str(e)}")
 
 
 @router.post("/verify-email/{token}")

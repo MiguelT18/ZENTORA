@@ -1,6 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 from dotenv import load_dotenv
+import logging
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -25,15 +28,27 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
-    # Email Settings
-    MAIL_USERNAME: str = os.getenv("MAIL_USERNAME")
-    MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD")
-    MAIL_FROM: str = os.getenv("MAIL_FROM")
-    MAIL_PORT: int = 587
-    MAIL_SERVER: str = os.getenv("MAIL_SERVER")
-    MAIL_FROM_NAME: str = PROJECT_NAME
+    # Email Settings (Brevo)
+    BREVO_API_KEY: str = os.getenv("BREVO_API_KEY", "")
+    BREVO_SENDER_EMAIL: str = os.getenv("BREVO_SENDER_EMAIL", "")
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, env_file_encoding="utf-8")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._validate_email_settings()
+
+    def _validate_email_settings(self):
+        """Validar la configuración del email al iniciar la aplicación."""
+        if not self.BREVO_API_KEY:
+            logger.error("BREVO_API_KEY no está configurada en las variables de entorno")
+        else:
+            logger.info("BREVO_API_KEY está configurada")
+
+        if not self.BREVO_SENDER_EMAIL:
+            logger.error("BREVO_SENDER_EMAIL no está configurada en las variables de entorno")
+        else:
+            logger.info(f"BREVO_SENDER_EMAIL está configurada: {self.BREVO_SENDER_EMAIL}")
 
     @property
     def async_database_url(self) -> str:
