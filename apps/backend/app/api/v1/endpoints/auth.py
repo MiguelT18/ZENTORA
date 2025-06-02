@@ -412,3 +412,47 @@ async def refresh_token(
         content=response_data,
         status_code=200,
     )
+
+
+@router.get("/me")
+async def get_current_user(token: str = Depends(verify_token_not_blacklisted), db: AsyncSession = Depends(get_db)):
+    """Endpoint para obtener información del usuario autenticado."""
+    try:
+        # Decodificar el token para obtener el ID del usuario
+        payload = decode_token(token)
+        if not payload or "sub" not in payload:
+            raise HTTPException(status_code=401, detail="Token inválido o mal formado")
+
+        user_id = payload["sub"]
+
+        # Buscar el usuario en la base de datos
+        result = await db.execute(select(UserModel).where(UserModel.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        return JSONResponse(
+            content={
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "full_name": user.full_name,
+                    "role": user.role,
+                    "bio": user.bio,
+                    "avatar_url": user.avatar_url,
+                    "is_verified": user.is_verified,
+                    "is_active": user.is_active,
+                    "created_at": user.created_at.isoformat(),
+                    "updated_at": user.updated_at.isoformat(),
+                }
+            },
+            status_code=200,
+        )
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al obtener información del usuario: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail=f"Error inesperado al obtener información del usuario: {str(e)}")
