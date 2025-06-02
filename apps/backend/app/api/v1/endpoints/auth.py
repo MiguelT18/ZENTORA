@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from app.db.deps import get_db
@@ -9,6 +9,8 @@ from app.core.security import (
     verify_password,
     create_access_token,
     create_refresh_token,
+    decode_token,
+    get_token_expiration,
 )
 from app.db.models.user import User as UserModel
 from fastapi.responses import JSONResponse
@@ -20,7 +22,7 @@ from app.core.email_verification import (
 )
 from app.core.email import send_verification_email
 from sqlalchemy import select, update
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from uuid import UUID
 import logging
 
@@ -185,7 +187,9 @@ async def resend_verification_email(
 
 
 @router.post("/login")
-async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)):
+async def login(
+    response: Response, user_in: UserLogin, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
+):
     """Endpoint para iniciar sesión y obtener tokens de acceso."""
     # Buscar usuario por email
     result = await db.execute(select(UserModel).where(UserModel.email == user_in.email))
@@ -225,9 +229,18 @@ async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db), redis: R
     # Almacenar hash en Redis
     redis_key = f"refresh_token:{user.id}"
     await redis.hset(redis_key, mapping=user_refresh_data)
-
-    # Establecer tiempo de expiración para todo el hash
     await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días en segundos
+
+    # Configurar cookie segura para el refresh token
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60,  # 7 días en segundos
+        path="/auth/refresh",  # Solo accesible en el endpoint de refresh
+    )
 
     return JSONResponse(
         content={
@@ -249,6 +262,7 @@ async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db), redis: R
 
 @router.post("/logout/{user_id}")
 async def logout(
+    response: Response,
     user_id: UUID,
     token: str = Depends(verify_token_not_blacklisted),
     db: AsyncSession = Depends(get_db),
@@ -274,4 +288,127 @@ async def logout(
     # Añadir el token actual a la lista negra
     await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
 
+    # Eliminar la cookie del refresh token
+    response.delete_cookie(key="refresh_token", path="/auth/refresh", secure=True, httponly=True)
+
     return JSONResponse(content={"message": "Sesión cerrada exitosamente"}, status_code=200)
+
+
+@router.post("/refresh")
+async def refresh_token(
+    request: Request,
+    response: Response,
+    token: str | None = None,
+    redis: Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_db),
+):
+    """Endpoint para renovar los tokens de acceso usando el refresh token."""
+    # Obtener el refresh token de la cookie
+    refresh_token = request.cookies.get("refresh_token")
+
+    # Usar el token de la cookie si está disponible, sino usar el token del header
+    token_to_use = refresh_token or token
+
+    if not token_to_use:
+        raise HTTPException(status_code=400, detail="No se proporcionó token de refresco")
+
+    # Decodificar el token
+    payload = decode_token(token_to_use)
+    if not payload or payload.get("type") != "refresh":
+        raise HTTPException(status_code=400, detail="Token de refresco inválido")
+
+    # Verificar expiración
+    expiration = get_token_expiration(token_to_use)
+    if not expiration:
+        raise HTTPException(status_code=400, detail="Token de refresco inválido o mal formado")
+
+    if expiration <= datetime.now(UTC):
+        raise HTTPException(
+            status_code=401, detail="El token de refresco ha expirado. Por favor, inicie sesión nuevamente."
+        )
+
+    # Calcular tiempo restante hasta expiración
+    time_until_expiry = expiration - datetime.now(UTC)
+    warning_threshold = timedelta(days=1)  # Advertir cuando quede 1 día o menos
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Token de refresco inválido")
+
+    # Verificar si el refresh token existe en Redis
+    redis_key = f"refresh_token:{user_id}"
+    stored_token = await redis.hget(redis_key, "refresh_token")
+
+    if not stored_token or stored_token != token_to_use:
+        raise HTTPException(status_code=400, detail="Token de refresco inválido o expirado")
+
+    # Obtener información del usuario de Redis
+    user_data = await redis.hgetall(redis_key)
+    if not user_data:
+        raise HTTPException(status_code=400, detail="Información de sesión no encontrada")
+
+    # Crear nuevos tokens
+    access_token_data = {
+        "sub": user_data["user_id"],
+        "email": user_data["email"],
+        "role": user_data["role"],
+        "type": "access",
+    }
+    refresh_token_data = {"sub": user_data["user_id"], "type": "refresh"}
+
+    new_access_token = create_access_token(access_token_data)
+    new_refresh_token = create_refresh_token(refresh_token_data)
+
+    # Actualizar el refresh token en Redis
+    user_refresh_data = {
+        "refresh_token": new_refresh_token,
+        "user_id": user_data["user_id"],
+        "email": user_data["email"],
+        "full_name": user_data["full_name"],
+        "role": user_data["role"],
+        "is_active": "true",
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+
+    # Almacenar nuevo hash en Redis
+    await redis.delete(redis_key)  # Eliminar el hash anterior
+    await redis.hset(redis_key, mapping=user_refresh_data)
+    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días en segundos
+
+    # Actualizar la cookie con el nuevo refresh token
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60,  # 7 días en segundos
+        path="/auth/refresh",
+    )
+
+    # Añadir el token anterior a la lista negra
+    await redis.set(f"blacklisted_token:{token_to_use}", "true", ex=3600)
+
+    response_data = {
+        "message": "Tokens renovados exitosamente",
+        "access_token": new_access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user_data["user_id"],
+            "email": user_data["email"],
+            "full_name": user_data["full_name"],
+            "role": user_data["role"],
+            "is_active": True,
+        },
+    }
+
+    # Añadir advertencia si el token está próximo a expirar
+    if time_until_expiry <= warning_threshold:
+        response_data["warning"] = (
+            f"Su sesión expirará en {time_until_expiry.days} días y {time_until_expiry.seconds // 3600} horas. Considere iniciar sesión nuevamente."
+        )
+
+    return JSONResponse(
+        content=response_data,
+        status_code=200,
+    )
