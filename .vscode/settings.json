@@ -13,12 +13,33 @@
   // Python specific settings
   "[python]": {
     "editor.tabSize": 4,
+    "editor.insertSpaces": true,
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true,
+    "editor.rulers": [
+      120
+    ],
+    "editor.wordWrapColumn": 120,
     "editor.codeActionsOnSave": {
       "source.organizeImports": "explicit"
     }
   },
+  // Python interpreter and environment
+  "python.defaultInterpreterPath": "${workspaceFolder}/apps/backend/.venv/bin/python",
+  "python.formatting.provider": "black",
+  "python.formatting.blackPath": "${workspaceFolder}/apps/backend/.venv/bin/black",
+  "python.formatting.blackArgs": [
+    "--line-length",
+    "120"
+  ],
+  "python.linting.enabled": false,
+  "python.linting.flake8Enabled": false,
+  "python.linting.flake8Path": "${workspaceFolder}/apps/backend/.venv/bin/flake8",
+  "python.linting.flake8Args": [
+    "--max-line-length=120",
+    "--extend-ignore=E203,W503",
+    "--config=none"
+  ],
   // JavaScript/TypeScript specific settings
   "[javascript]": {
     "editor.tabSize": 2,
@@ -36,15 +57,10 @@
     "editor.tabSize": 2,
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  // Python extension settings
-  "python.formatting.provider": "black",
-  "python.sortImports.args": [
-    "--profile",
-    "black"
-  ],
   // TypeScript/JavaScript extension settings
   "typescript.preferences.importModuleSpecifier": "non-relative",
   "javascript.preferences.importModuleSpecifier": "non-relative",
   "typescript.updateImportsOnFileMove.enabled": "always",
-  "javascript.updateImportsOnFileMove.enabled": "always"
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "flake8.enabled": false
 }
