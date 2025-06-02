@@ -12,6 +12,8 @@ from app.schemas.user import (
     PasswordChange,
     DeleteAccount,
     RevokeAllSessions,
+    ActiveSessionsList,
+    ActiveSession,
 )
 from app.core.security import (
     get_password_hash,
@@ -744,3 +746,66 @@ async def revoke_all_sessions(
         logger.error(f"Error inesperado al revocar sesiones: {str(e)}")
         logger.exception("Stacktrace completo:")
         raise HTTPException(status_code=500, detail="Error inesperado al revocar las sesiones")
+
+
+@router.get("/sessions", response_model=ActiveSessionsList)
+async def list_active_sessions(
+    token: str = Depends(verify_token_not_blacklisted),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Endpoint para listar todas las sesiones activas. Solo accesible para administradores."""
+    try:
+        # Decodificar el token para obtener el ID y rol del usuario
+        payload = decode_token(token)
+        if not payload or "sub" not in payload or "role" not in payload:
+            raise HTTPException(status_code=401, detail="Token inválido o mal formado")
+
+        # Verificar que el usuario sea administrador
+        if payload["role"].lower() != "admin":
+            raise HTTPException(
+                status_code=403,
+                detail="No tienes permisos suficientes para acceder a esta información",
+            )
+
+        # Obtener todas las claves de refresh tokens
+        refresh_keys = []
+        async for key in redis.scan_iter("refresh_token:*"):
+            refresh_keys.append(key)
+
+        active_sessions = []
+        # Procesar cada sesión activa
+        for key in refresh_keys:
+            session_data = await redis.hgetall(key)
+            if session_data:
+                try:
+                    created_at = datetime.fromisoformat(session_data.get("created_at", ""))
+                    # Crear una instancia de ActiveSession usando el modelo Pydantic
+                    session = ActiveSession(
+                        user_id=UUID(session_data.get("user_id", "")),
+                        email=session_data.get("email", ""),
+                        full_name=session_data.get("full_name", ""),
+                        role=session_data.get("role", ""),
+                        created_at=created_at,
+                        is_active=session_data.get("is_active", "false").lower() == "true",
+                    )
+                    active_sessions.append(session)
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error al procesar sesión {key}: {str(e)}")
+                    continue
+
+        # Ordenar las sesiones por fecha de creación (más recientes primero)
+        active_sessions.sort(key=lambda x: x.created_at, reverse=True)
+
+        # Crear la respuesta usando el modelo Pydantic
+        response = ActiveSessionsList(total=len(active_sessions), sessions=active_sessions)
+
+        # FastAPI automáticamente serializará el modelo Pydantic a JSON
+        return response
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al listar sesiones activas: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail="Error inesperado al listar las sesiones activas")

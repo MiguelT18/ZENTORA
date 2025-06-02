@@ -77,3 +77,17 @@ class RevokeAllSessions(BaseModel):
     current_password: str = Field(
         ..., min_length=8, description="Contraseña actual del usuario para verificar la identidad"
     )
+
+
+class ActiveSession(BaseModel):
+    user_id: UUID
+    email: str
+    full_name: str
+    role: str
+    created_at: datetime
+    is_active: bool
+
+
+class ActiveSessionsList(BaseModel):
+    total: int
+    sessions: list[ActiveSession]
