@@ -71,3 +71,9 @@ class PasswordChange(BaseModel):
 
 class DeleteAccount(BaseModel):
     current_password: str = Field(..., min_length=8, description="Contraseña actual del usuario")
+
+
+class RevokeAllSessions(BaseModel):
+    current_password: str = Field(
+        ..., min_length=8, description="Contraseña actual del usuario para verificar la identidad"
+    )

@@ -11,6 +11,7 @@ from app.schemas.user import (
     PasswordResetVerify,
     PasswordChange,
     DeleteAccount,
+    RevokeAllSessions,
 )
 from app.core.security import (
     get_password_hash,
@@ -688,3 +689,58 @@ async def delete_account(
         logger.error(f"Error inesperado al eliminar la cuenta: {str(e)}")
         logger.exception("Stacktrace completo:")
         raise HTTPException(status_code=500, detail="Error inesperado al eliminar la cuenta")
+
+
+@router.delete("/revoke")
+async def revoke_all_sessions(
+    revoke_data: RevokeAllSessions,
+    token: str = Depends(verify_token_not_blacklisted),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Endpoint para revocar todas las sesiones activas del usuario."""
+    try:
+        # Decodificar el token para obtener el ID del usuario
+        payload = decode_token(token)
+        if not payload or "sub" not in payload:
+            raise HTTPException(status_code=401, detail="Token inválido o mal formado")
+
+        user_id = payload["sub"]
+
+        # Buscar el usuario en la base de datos
+        result = await db.execute(select(UserModel).where(UserModel.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        # Verificar la contraseña actual
+        if not verify_password(revoke_data.current_password, user.password):
+            raise HTTPException(status_code=400, detail="La contraseña es incorrecta")
+
+        # Marcar al usuario como inactivo
+        await db.execute(
+            update(UserModel).where(UserModel.id == user_id).values(is_active=False, updated_at=datetime.now(UTC))
+        )
+        await db.commit()
+
+        # Eliminar todas las sesiones del usuario en Redis
+        redis_key = f"refresh_token:{user_id}"
+        await redis.delete(redis_key)
+
+        # Añadir el token actual a la lista negra
+        await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
+
+        return JSONResponse(
+            content={
+                "message": "Todas las sesiones han sido revocadas exitosamente. Por favor, inicia sesión nuevamente."
+            },
+            status_code=200,
+        )
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al revocar sesiones: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail="Error inesperado al revocar las sesiones")
