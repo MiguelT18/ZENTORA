@@ -7,7 +7,11 @@ from app.core.security import get_password_hash
 from app.db.models.user import User as UserModel
 from fastapi.responses import JSONResponse
 from app.core.redis import get_redis
-from app.core.email_verification import generate_verification_token, verify_email_token
+from app.core.email_verification import (
+    generate_verification_token,
+    verify_email_token,
+    cleanup_expired_unverified_users,
+)
 
 router = APIRouter(prefix="/auth")
 
@@ -81,4 +85,13 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
             "user": {"id": user.id, "email": user.email, "is_verified": user.is_verified},
         },
         status_code=200,
+    )
+
+
+@router.delete("/unverified")
+async def cleanup_expired_users(db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)):
+    """Elimina todos los usuarios no verificados que hayan expirado."""
+    count = await cleanup_expired_unverified_users(db, redis)
+    return JSONResponse(
+        content={"message": f"Se eliminaron {count} usuarios no verificados", "deleted_count": count}, status_code=200
     )
