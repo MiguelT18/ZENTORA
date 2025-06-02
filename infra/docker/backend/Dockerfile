@@ -31,8 +31,12 @@ COPY pyproject.toml poetry.lock* ./
 # Instalar dependencias
 RUN poetry install --no-root --with dev
 
-# Copiar el código
+# Copiar el código y el archivo .env
 COPY . .
+COPY .env .env
+
+# Verificar que el archivo .env existe
+RUN ls -la .env || echo ".env file not found"
 
 EXPOSE 8000
 

@@ -42,6 +42,11 @@ services:
       - DEBUG=1
       - DATABASE_URL=postgresql://zentora:zentora@postgres:5432/zentora_db
       - REDIS_URL=redis://redis:6379/0
+      - MAIL_USERNAME=your_email@gmail.com
+      - MAIL_PASSWORD=your_app_password
+      - MAIL_FROM=your_email@gmail.com
+      - MAIL_SERVER=smtp.gmail.com
+      - BACKEND_CORS_ORIGINS=["http://localhost:3000"]
     depends_on:
       postgres:
         condition: service_healthy

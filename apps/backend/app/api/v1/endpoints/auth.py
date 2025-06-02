@@ -12,6 +12,8 @@ from app.core.email_verification import (
     verify_email_token,
     cleanup_expired_unverified_users,
 )
+from app.core.email import send_verification_email
+from sqlalchemy import select, update
 
 router = APIRouter(prefix="/auth")
 
@@ -41,7 +43,10 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
     # Generar token de verificación
     verification_token = await generate_verification_token(redis, user_in.email)
 
-    success_msg = "Usuario creado exitosamente. Por favor, verifica tu correo."
+    # Enviar email de verificación
+    await send_verification_email(user_in.email, verification_token)
+
+    success_msg = "Usuario creado exitosamente. Por favor, verifica tu correo electrónico."
 
     # Crear respuesta personalizada
     response_data = {
@@ -55,7 +60,6 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
             "avatar_url": db_user.avatar_url,
             "is_verified": db_user.is_verified,
         },
-        "verification_token": verification_token,
     }
 
     return JSONResponse(content=response_data, status_code=201)
@@ -69,11 +73,14 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
         raise HTTPException(status_code=400, detail="Token de verificación inválido o expirado")
 
     # Actualizar el estado de verificación del usuario
-    result = await db.execute(
-        UserModel.__table__.update().where(UserModel.email == email).values(is_verified=True).returning(UserModel)
-    )
+    stmt = update(UserModel).where(UserModel.email == email).values(is_verified=True)
+    await db.execute(stmt)
 
+    # Obtener el usuario actualizado
+    stmt = select(UserModel).where(UserModel.email == email)
+    result = await db.execute(stmt)
     user = result.scalar_one_or_none()
+
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
