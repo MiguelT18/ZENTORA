@@ -3,7 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from app.db.deps import get_db
 from app.core.deps import verify_token_not_blacklisted
-from app.schemas.user import UserCreate, EmailRequest, UserLogin
+from app.schemas.user import (
+    UserCreate,
+    EmailRequest,
+    UserLogin,
+    PasswordResetRequest,
+    PasswordResetVerify,
+    PasswordChange,
+)
 from app.core.security import (
     get_password_hash,
     verify_password,
@@ -20,7 +27,12 @@ from app.core.email_verification import (
     verify_email_token,
     cleanup_expired_unverified_users,
 )
-from app.core.email import send_verification_email
+from app.core.email import send_verification_email, send_password_reset_email
+from app.core.password_recovery import (
+    generate_password_reset_token,
+    verify_password_reset_token,
+    invalidate_password_reset_token,
+)
 from sqlalchemy import select, update
 from datetime import datetime, UTC, timedelta
 from uuid import UUID
@@ -456,3 +468,167 @@ async def get_current_user(token: str = Depends(verify_token_not_blacklisted), d
         logger.error(f"Error inesperado al obtener información del usuario: {str(e)}")
         logger.exception("Stacktrace completo:")
         raise HTTPException(status_code=500, detail=f"Error inesperado al obtener información del usuario: {str(e)}")
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    reset_request: PasswordResetRequest, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
+):
+    """Endpoint para solicitar un token de recuperación de contraseña."""
+    try:
+        # Verificar si el usuario existe
+        result = await db.execute(select(UserModel).where(UserModel.email == reset_request.email))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            # Por seguridad, no revelamos si el email existe o no
+            return JSONResponse(
+                content={
+                    "message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"
+                },
+                status_code=200,
+            )
+
+        if not user.is_verified:
+            raise HTTPException(
+                status_code=400,
+                detail="La cuenta no está verificada. Por favor, verifica tu correo electrónico primero",
+            )
+
+        # Generar token de recuperación
+        reset_token = await generate_password_reset_token(redis, reset_request.email)
+
+        # Enviar correo con el token
+        await send_password_reset_email(reset_request.email, reset_token)
+
+        return JSONResponse(
+            content={"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"},
+            status_code=200,
+        )
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado en recuperación de contraseña: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        # Por seguridad, no revelamos detalles del error
+        return JSONResponse(
+            content={"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"},
+            status_code=200,
+        )
+
+
+@router.put("/reset-password")
+async def reset_password(
+    reset_data: PasswordResetVerify, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
+):
+    """Endpoint para restablecer la contraseña usando el token de verificación."""
+    try:
+        # Verificar el token y obtener el email asociado
+        email = await verify_password_reset_token(redis, reset_data.token)
+        if not email:
+            raise HTTPException(
+                status_code=400,
+                detail="Token inválido o expirado. Por favor, solicita un nuevo código de recuperación.",
+            )
+
+        # Buscar el usuario por email
+        result = await db.execute(select(UserModel).where(UserModel.email == email))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            # Invalidar el token si el usuario no existe
+            await invalidate_password_reset_token(redis, reset_data.token)
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        # Actualizar la contraseña
+        hashed_password = get_password_hash(reset_data.new_password)
+        await db.execute(
+            update(UserModel)
+            .where(UserModel.email == email)
+            .values(password=hashed_password, updated_at=datetime.now(UTC))
+        )
+        await db.commit()
+
+        # Invalidar el token después de usarlo
+        await invalidate_password_reset_token(redis, reset_data.token)
+
+        # Invalidar todas las sesiones activas del usuario por seguridad
+        redis_key = f"refresh_token:{user.id}"
+        await redis.delete(redis_key)
+
+        return JSONResponse(
+            content={
+                "message": "Contraseña actualizada exitosamente. Por favor, inicia sesión con tu nueva contraseña."
+            },
+            status_code=200,
+        )
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al restablecer la contraseña: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail="Error inesperado al restablecer la contraseña")
+
+
+@router.patch("/change-password")
+async def change_password(
+    password_data: PasswordChange,
+    token: str = Depends(verify_token_not_blacklisted),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Endpoint para cambiar la contraseña del usuario autenticado."""
+    try:
+        # Decodificar el token para obtener el ID del usuario
+        payload = decode_token(token)
+        if not payload or "sub" not in payload:
+            raise HTTPException(status_code=401, detail="Token inválido o mal formado")
+
+        user_id = payload["sub"]
+
+        # Buscar el usuario en la base de datos
+        result = await db.execute(select(UserModel).where(UserModel.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        # Verificar la contraseña actual
+        if not verify_password(password_data.current_password, user.password):
+            raise HTTPException(status_code=400, detail="La contraseña actual es incorrecta")
+
+        # Verificar que la nueva contraseña sea diferente de la actual
+        if verify_password(password_data.new_password, user.password):
+            raise HTTPException(status_code=400, detail="La nueva contraseña debe ser diferente de la actual")
+
+        # Actualizar la contraseña
+        hashed_password = get_password_hash(password_data.new_password)
+        await db.execute(
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(password=hashed_password, updated_at=datetime.now(UTC))
+        )
+        await db.commit()
+
+        # Invalidar todas las sesiones activas del usuario por seguridad
+        redis_key = f"refresh_token:{user_id}"
+        await redis.delete(redis_key)
+
+        # Añadir el token actual a la lista negra
+        await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
+
+        return JSONResponse(
+            content={
+                "message": "Contraseña actualizada exitosamente. Por favor, inicia sesión nuevamente con tu nueva contraseña."
+            },
+            status_code=200,
+        )
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al cambiar la contraseña: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail="Error inesperado al cambiar la contraseña")
