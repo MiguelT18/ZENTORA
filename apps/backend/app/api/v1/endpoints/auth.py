@@ -608,7 +608,11 @@ async def change_password(
         await db.execute(
             update(UserModel)
             .where(UserModel.id == user_id)
-            .values(password=hashed_password, updated_at=datetime.now(UTC))
+            .values(
+                password=hashed_password,
+                is_active=False,
+                updated_at=datetime.now(UTC),
+            )
         )
         await db.commit()
 
