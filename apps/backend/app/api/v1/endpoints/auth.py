@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from app.db.deps import get_db
-from app.schemas.user import UserCreate, EmailRequest
-from app.core.security import get_password_hash
+from app.schemas.user import UserCreate, EmailRequest, UserLogin
+from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
 from app.db.models.user import User as UserModel
 from fastapi.responses import JSONResponse
 from app.core.redis import get_redis
@@ -14,7 +14,7 @@ from app.core.email_verification import (
 )
 from app.core.email import send_verification_email
 from sqlalchemy import select, update
-from pydantic import BaseModel
+from datetime import datetime, UTC
 
 router = APIRouter(prefix="/auth")
 
@@ -132,5 +132,62 @@ async def resend_verification_email(
 
     return JSONResponse(
         content={"message": "Se ha enviado un nuevo correo de verificación", "email": email_request.email},
+        status_code=200,
+    )
+
+
+@router.post("/login")
+async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)):
+    """Endpoint para iniciar sesión y obtener tokens de acceso."""
+    # Buscar usuario por email
+    result = await db.execute(select(UserModel).where(UserModel.email == user_in.email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Email o contraseña incorrectos")
+
+    if not verify_password(user_in.password, user.password):
+        raise HTTPException(status_code=400, detail="Email o contraseña incorrectos")
+
+    if not user.is_verified:
+        raise HTTPException(status_code=400, detail="Por favor, verifica tu correo electrónico antes de iniciar sesión")
+
+    # Crear tokens
+    access_token_data = {"sub": str(user.id), "email": user.email, "role": user.role, "type": "access"}
+    refresh_token_data = {"sub": str(user.id), "type": "refresh"}
+
+    access_token = create_access_token(access_token_data)
+    refresh_token = create_refresh_token(refresh_token_data)
+
+    # Crear hash con información del usuario y refresh token
+    user_refresh_data = {
+        "refresh_token": refresh_token,
+        "user_id": str(user.id),
+        "email": str(user.email),
+        "full_name": str(user.full_name),
+        "role": str(user.role),
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+
+    # Almacenar hash en Redis
+    redis_key = f"refresh_token:{user.id}"
+    await redis.hset(redis_key, mapping=user_refresh_data)
+
+    # Establecer tiempo de expiración para todo el hash
+    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días en segundos
+
+    return JSONResponse(
+        content={
+            "message": "Inicio de sesión exitoso",
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role,
+                "is_verified": user.is_verified,
+            },
+        },
         status_code=200,
     )

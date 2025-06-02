@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
 
+    # Security
+    SECRET_KEY: str = os.getenv("SECRET_KEY", os.getenv("SECRET_KEY"))
+
     # Database
     DATABASE_URL: str
 

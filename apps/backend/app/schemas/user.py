@@ -14,8 +14,13 @@ class UserBase(BaseModel):
     avatar_url: Optional[str] = None
 
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
+    email: EmailStr
     password: str
+    full_name: str
+    role: str = "user"
+    bio: str | None = None
+    avatar_url: str | None = None
 
 
 class UserUpdate(UserBase):
@@ -42,4 +47,9 @@ class UserInDB(UserInDBBase):
 
 
 class EmailRequest(BaseModel):
-    email: str
+    email: EmailStr
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
