@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.db.models.user import UserRole
 
@@ -67,3 +67,7 @@ class PasswordResetVerify(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+
+class DeleteAccount(BaseModel):
+    current_password: str = Field(..., min_length=8, description="Contraseña actual del usuario")

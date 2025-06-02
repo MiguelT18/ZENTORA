@@ -10,6 +10,7 @@ from app.schemas.user import (
     PasswordResetRequest,
     PasswordResetVerify,
     PasswordChange,
+    DeleteAccount,
 )
 from app.core.security import (
     get_password_hash,
@@ -636,3 +637,54 @@ async def change_password(
         logger.error(f"Error inesperado al cambiar la contraseña: {str(e)}")
         logger.exception("Stacktrace completo:")
         raise HTTPException(status_code=500, detail="Error inesperado al cambiar la contraseña")
+
+
+@router.delete("/delete-account")
+async def delete_account(
+    delete_data: DeleteAccount,
+    token: str = Depends(verify_token_not_blacklisted),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Endpoint para eliminar permanentemente la cuenta del usuario."""
+    try:
+        # Decodificar el token para obtener el ID del usuario
+        payload = decode_token(token)
+        if not payload or "sub" not in payload:
+            raise HTTPException(status_code=401, detail="Token inválido o mal formado")
+
+        user_id = payload["sub"]
+
+        # Buscar el usuario en la base de datos
+        result = await db.execute(select(UserModel).where(UserModel.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        # Verificar la contraseña actual
+        if not verify_password(delete_data.current_password, user.password):
+            raise HTTPException(status_code=400, detail="La contraseña es incorrecta")
+
+        # Eliminar todas las sesiones del usuario en Redis
+        redis_key = f"refresh_token:{user_id}"
+        await redis.delete(redis_key)
+
+        # Añadir el token actual a la lista negra
+        await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
+
+        # Eliminar el usuario de la base de datos
+        await db.execute(UserModel.__table__.delete().where(UserModel.id == user_id))
+        await db.commit()
+
+        return JSONResponse(
+            content={"message": "Cuenta eliminada exitosamente"},
+            status_code=200,
+        )
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al eliminar la cuenta: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail="Error inesperado al eliminar la cuenta")
