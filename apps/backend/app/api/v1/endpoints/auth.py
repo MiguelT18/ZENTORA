@@ -47,7 +47,7 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
     response_data = {
         "message": success_msg,
         "user": {
-            "id": db_user.id,
+            "id": str(db_user.id),
             "email": db_user.email,
             "full_name": db_user.full_name,
             "role": db_user.role,
@@ -82,7 +82,7 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
     return JSONResponse(
         content={
             "message": "Email verificado exitosamente",
-            "user": {"id": user.id, "email": user.email, "is_verified": user.is_verified},
+            "user": {"id": str(user.id), "email": user.email, "is_verified": user.is_verified},
         },
         status_code=200,
     )

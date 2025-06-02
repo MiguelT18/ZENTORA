@@ -18,19 +18,12 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=True,
-        env_file_encoding="utf-8"
-    )
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, env_file_encoding="utf-8")
 
     @property
     def async_database_url(self) -> str:
         """Get async database URL."""
-        return self.DATABASE_URL.replace(
-            "postgresql://",
-            "postgresql+psycopg://"
-        )
+        return self.DATABASE_URL.replace("postgresql://", "postgresql+psycopg://")
 
 
 settings = Settings()

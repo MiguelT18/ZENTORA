@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
 ENV POETRY_HOME=/opt/poetry
 ENV POETRY_VERSION=1.7.1
 ENV POETRY_VENV=/opt/poetry-venv
+ENV PYTHONPATH=/app
 
 # Instalar poetry en su propio virtualenv
 RUN python3 -m venv $POETRY_VENV \
