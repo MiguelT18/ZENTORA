@@ -1,6 +1,6 @@
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
-from jose import jwt
+from datetime import datetime, timedelta, UTC
+from jose import jwt, JWTError
 from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -25,7 +25,7 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict) -> str:
     """Create a new access token."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -34,7 +34,24 @@ def create_access_token(data: dict) -> str:
 def create_refresh_token(data: dict) -> str:
     """Create a new refresh token."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(UTC) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def decode_token(token: str) -> dict:
+    """Decode a JWT token and return its payload."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+
+def get_token_expiration(token: str) -> datetime | None:
+    """Get token expiration datetime from token."""
+    payload = decode_token(token)
+    if payload and "exp" in payload:
+        return datetime.fromtimestamp(payload["exp"], UTC)
+    return None

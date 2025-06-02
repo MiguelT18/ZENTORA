@@ -2,8 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from app.db.deps import get_db
+from app.core.deps import verify_token_not_blacklisted
 from app.schemas.user import UserCreate, EmailRequest, UserLogin
-from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
+from app.core.security import (
+    get_password_hash,
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+)
 from app.db.models.user import User as UserModel
 from fastapi.responses import JSONResponse
 from app.core.redis import get_redis
@@ -15,6 +21,7 @@ from app.core.email_verification import (
 from app.core.email import send_verification_email
 from sqlalchemy import select, update
 from datetime import datetime, UTC
+from uuid import UUID
 
 router = APIRouter(prefix="/auth")
 
@@ -152,6 +159,10 @@ async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db), redis: R
     if not user.is_verified:
         raise HTTPException(status_code=400, detail="Por favor, verifica tu correo electrónico antes de iniciar sesión")
 
+    # Actualizar estado is_active
+    await db.execute(update(UserModel).where(UserModel.id == user.id).values(is_active=True))
+    await db.commit()
+
     # Crear tokens
     access_token_data = {"sub": str(user.id), "email": user.email, "role": user.role, "type": "access"}
     refresh_token_data = {"sub": str(user.id), "type": "refresh"}
@@ -166,6 +177,7 @@ async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db), redis: R
         "email": str(user.email),
         "full_name": str(user.full_name),
         "role": str(user.role),
+        "is_active": "true",
         "created_at": datetime.now(UTC).isoformat(),
     }
 
@@ -187,7 +199,38 @@ async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db), redis: R
                 "full_name": user.full_name,
                 "role": user.role,
                 "is_verified": user.is_verified,
+                "is_active": True,
             },
         },
         status_code=200,
     )
+
+
+@router.post("/logout/{user_id}")
+async def logout(
+    user_id: UUID,
+    token: str = Depends(verify_token_not_blacklisted),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Endpoint para cerrar sesión."""
+    # Actualizar estado is_active
+    result = await db.execute(
+        update(UserModel).where(UserModel.id == user_id).values(is_active=False).returning(UserModel)
+    )
+
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    await db.commit()
+
+    # Eliminar refresh token de Redis
+    redis_key = f"refresh_token:{user_id}"
+    await redis.delete(redis_key)
+
+    # Añadir el token actual a la lista negra
+    await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
+
+    return JSONResponse(content={"message": "Sesión cerrada exitosamente"}, status_code=200)

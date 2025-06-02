@@ -23,5 +23,6 @@ class User(Base):
     bio = Column(Text, nullable=True)
     avatar_url = Column(String(255), nullable=True)
     is_verified = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
