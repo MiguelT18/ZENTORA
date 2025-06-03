@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from app.db.deps import get_db
-from app.core.deps import verify_token_not_blacklisted
-from app.core.social_auth import verify_social_token
-from app.core.temp_auth import generate_temporary_auth_code, get_temp_auth_data
+from app.core.utils.deps import verify_token_not_blacklisted
+from app.core.auth.social_auth import verify_social_token
+from app.core.auth.temp_auth import generate_temporary_auth_code, get_temp_auth_data
 from app.schemas.user import (
     UserCreate,
     EmailRequest,
@@ -22,7 +22,7 @@ from app.schemas.user import (
     UserRole,
     ReactivateAccount,
 )
-from app.core.security import (
+from app.core.auth.security import (
     get_password_hash,
     verify_password,
     create_access_token,
@@ -33,13 +33,13 @@ from app.core.security import (
 from app.db.models.user import User as UserModel
 from fastapi.responses import JSONResponse, RedirectResponse
 from app.core.redis import get_redis
-from app.core.email_verification import (
+from app.core.email.email_verification import (
     generate_verification_token,
     verify_email_token,
     cleanup_expired_unverified_users,
 )
-from app.core.email import send_verification_email, send_password_reset_email
-from app.core.password_recovery import (
+from app.core.email.email import send_verification_email, send_password_reset_email
+from app.core.auth.password_recovery import (
     generate_password_reset_token,
     verify_password_reset_token,
     invalidate_password_reset_token,
@@ -49,7 +49,7 @@ from datetime import datetime, UTC, timedelta
 from uuid import UUID
 import logging
 import httpx
-from app.core.config import settings
+from app.core.config.config import settings
 from secrets import token_urlsafe
 from pydantic import BaseModel
 
@@ -101,11 +101,6 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
 
         # 4. Solo si el correo se envió correctamente, crear el usuario
         logger.debug("Creando usuario en la base de datos")
-
-        # TODO: Después de crear el usuario generar los tokens de acceso y refresco
-        # TODO: Almacenar el token de refresco en la base de datos
-        # TODO: Almacenar el token de acceso en la base de datos
-        # TODO: Almacenar el token de refresco en la base de datos
 
         try:
             db_user = UserModel(
@@ -184,12 +179,38 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
 
     await db.commit()
 
+    # Generar tokens de sesión
+    access_token_data = {"sub": str(user.id), "email": user.email, "role": user.role, "type": "access"}
+    refresh_token_data = {"sub": str(user.id), "type": "refresh"}
+
+    access_token = create_access_token(access_token_data)
+    refresh_token = create_refresh_token(refresh_token_data)
+
+    # Almacenar información del refresh token en Redis
+    user_refresh_data = {
+        "refresh_token": refresh_token,
+        "user_id": str(user.id),
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": str(user.role),
+        "status": user.status,
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+
+    redis_key = f"refresh_token:{user.id}"
+    await redis.hset(redis_key, mapping=user_refresh_data)
+    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
+
     return JSONResponse(
         content={
             "message": "Email verificado exitosamente",
+            "access_token": access_token,
+            "token_type": "bearer",
             "user": {
                 "id": str(user.id),
                 "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role,
                 "is_verified": user.is_verified,
                 "status": user.status,
             },

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
-from app.core.email_verification import cleanup_expired_unverified_users
+from app.core.email.email_verification import cleanup_expired_unverified_users
 from app.db.deps import get_db
 from app.core.redis import get_redis
 

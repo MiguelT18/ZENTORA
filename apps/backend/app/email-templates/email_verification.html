@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Verifica tu correo electrónico</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .container {
+      background-color: #f9f9f9;
+      border-radius: 5px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>¡Bienvenido a ZENTORA!</h1>
+    <p>Hola {{ full_name }},</p>
+    <p>Gracias por registrarte en ZENTORA. Para completar tu registro y activar tu cuenta, por favor haz clic en el
+      siguiente botón:</p>
+
+    <a href="{{ verification_url }}" class="button">Verificar correo electrónico</a>
+
+    <p>O copia y pega el siguiente enlace en tu navegador:</p>
+    <p>{{ verification_url }}</p>
+
+    <p>Este enlace expirará en 24 horas por razones de seguridad.</p>
+
+    <p>Si no has creado una cuenta en ZENTORA, puedes ignorar este correo.</p>
+
+    <div class="footer">
+      <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
+      <p>© 2024 ZENTORA. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+
+</html>

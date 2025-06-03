@@ -2,8 +2,8 @@ from enum import Enum
 
 
 class UserRole(str, Enum):
-    USER = "user"
-    ADMIN = "admin"
+    USER = "USER"
+    ADMIN = "ADMIN"
 
     def __str__(self) -> str:
         return self.value

@@ -10,9 +10,9 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
-from app.core.config import settings
 from app.api.v1.api import api_router
-from app.core.scheduler import init_scheduler
+from app.core.config.config import settings
+from app.core.utils.scheduler import init_scheduler
 
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION, openapi_url=f"{settings.API_V1_STR}/openapi.json")
 

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 import httpx
 from app.schemas.user import AuthProvider, SocialProfile
 from app.core.config import settings
@@ -24,60 +24,46 @@ async def verify_google_token(token: str) -> SocialProfile:
         )
 
 
-async def verify_github_token(token: str) -> SocialProfile:
-    """Verifica el token de GitHub y retorna la información del perfil."""
+async def verify_github_token(access_token: str) -> SocialProfile:
+    """Verifica un token de acceso de GitHub y obtiene información del usuario."""
     async with httpx.AsyncClient() as client:
+        headers = {
+            "Authorization": f"token {access_token}",
+            "Accept": "application/json",
+        }
+
         # Obtener información del usuario
-        response = await client.get(
-            "https://api.github.com/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github.v3+json",
-            },
-        )
+        response = await client.get("https://api.github.com/user", headers=headers)
+
         if response.status_code != 200:
             raise ValueError("Token de GitHub inválido")
 
         user_data = response.json()
 
-        # Obtener el email del usuario (GitHub requiere una llamada adicional)
-        email_response = await client.get(
-            "https://api.github.com/user/emails",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github.v3+json",
-            },
-        )
+        # Obtener email verificado
+        email_response = await client.get("https://api.github.com/user/emails", headers=headers)
+
         if email_response.status_code != 200:
             raise ValueError("No se pudo obtener el email de GitHub")
 
-        # Obtener el email principal y verificado
-        email_data = email_response.json()
-        primary_email = next(
-            (email["email"] for email in email_data if email["primary"] and email["verified"]),
-            None,
-        )
+        emails = email_response.json()
+        primary_email = next((email for email in emails if email["primary"] and email["verified"]), None)
+
         if not primary_email:
-            raise ValueError("No se encontró un email verificado en GitHub")
+            raise ValueError("No se encontró un email verificado en la cuenta de GitHub")
 
         return SocialProfile(
             provider_id=str(user_data["id"]),
-            email=primary_email,
+            email=primary_email["email"],
             full_name=user_data.get("name"),
             avatar_url=user_data.get("avatar_url"),
             provider=AuthProvider.GITHUB,
         )
 
 
-async def verify_social_token(provider: AuthProvider, token: str) -> SocialProfile:
-    """Verifica el token social según el proveedor."""
-    verify_functions = {
-        AuthProvider.GOOGLE: verify_google_token,
-        AuthProvider.GITHUB: verify_github_token,
-    }
-
-    verify_func = verify_functions.get(provider)
-    if not verify_func:
+async def verify_social_token(provider: str, access_token: str) -> SocialProfile:
+    """Verifica un token de acceso social y devuelve información del usuario."""
+    if provider == "github":
+        return await verify_github_token(access_token)
+    else:
         raise ValueError(f"Proveedor no soportado: {provider}")
-
-    return await verify_func(token)
