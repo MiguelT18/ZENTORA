@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     BREVO_API_KEY: str = os.getenv("BREVO_API_KEY", "")
     BREVO_SENDER_EMAIL: str = os.getenv("BREVO_SENDER_EMAIL", "")
 
+    # GitHub OAuth Settings
+    GITHUB_CLIENT_ID: str = os.getenv("GITHUB_CLIENT_ID", "")
+    GITHUB_CLIENT_SECRET: str = os.getenv("GITHUB_CLIENT_SECRET", "")
+    GITHUB_REDIRECT_URI: str = os.getenv("GITHUB_REDIRECT_URI", "http://localhost/api/v1/auth/github/callback")
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, env_file_encoding="utf-8")
 
     def __init__(self, **kwargs):

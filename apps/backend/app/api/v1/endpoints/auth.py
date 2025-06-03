@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from app.db.deps import get_db
 from app.core.deps import verify_token_not_blacklisted
+from app.core.social_auth import verify_social_token
+from app.core.temp_auth import generate_temporary_auth_code, get_temp_auth_data
 from app.schemas.user import (
     UserCreate,
     EmailRequest,
@@ -14,6 +16,11 @@ from app.schemas.user import (
     RevokeAllSessions,
     ActiveSessionsList,
     ActiveSession,
+    SocialLoginRequest,
+    UserStatus,
+    AuthProvider,
+    UserRole,
+    ReactivateAccount,
 )
 from app.core.security import (
     get_password_hash,
@@ -24,7 +31,7 @@ from app.core.security import (
     get_token_expiration,
 )
 from app.db.models.user import User as UserModel
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from app.core.redis import get_redis
 from app.core.email_verification import (
     generate_verification_token,
@@ -41,10 +48,20 @@ from sqlalchemy import select, update
 from datetime import datetime, UTC, timedelta
 from uuid import UUID
 import logging
+import httpx
+from app.core.config import settings
+from secrets import token_urlsafe
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth")
 
 logger = logging.getLogger(__name__)
+
+
+class ExchangeCodeRequest(BaseModel):
+    """Modelo para intercambiar el código temporal por tokens."""
+
+    temp_code: str
 
 
 @router.post("/register")
@@ -84,6 +101,12 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
 
         # 4. Solo si el correo se envió correctamente, crear el usuario
         logger.debug("Creando usuario en la base de datos")
+
+        # TODO: Después de crear el usuario generar los tokens de acceso y refresco
+        # TODO: Almacenar el token de refresco en la base de datos
+        # TODO: Almacenar el token de acceso en la base de datos
+        # TODO: Almacenar el token de refresco en la base de datos
+
         try:
             db_user = UserModel(
                 email=user_in.email,
@@ -93,6 +116,8 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
                 bio=user_in.bio,
                 avatar_url=user_in.avatar_url,
                 is_verified=False,
+                status=UserStatus.INACTIVE,
+                provider=AuthProvider.LOCAL,
             )
 
             db.add(db_user)
@@ -118,6 +143,8 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
                     "bio": db_user.bio,
                     "avatar_url": db_user.avatar_url,
                     "is_verified": db_user.is_verified,
+                    "status": db_user.status,
+                    "provider": db_user.provider,
                 },
             },
             status_code=201,
@@ -140,7 +167,11 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
         raise HTTPException(status_code=400, detail="Token de verificación inválido o expirado")
 
     # Actualizar el estado de verificación del usuario
-    stmt = update(UserModel).where(UserModel.email == email).values(is_verified=True)
+    stmt = (
+        update(UserModel)
+        .where(UserModel.email == email)
+        .values(is_verified=True, status=UserStatus.ACTIVE, updated_at=datetime.now(UTC))
+    )
     await db.execute(stmt)
 
     # Obtener el usuario actualizado
@@ -156,7 +187,12 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
     return JSONResponse(
         content={
             "message": "Email verificado exitosamente",
-            "user": {"id": str(user.id), "email": user.email, "is_verified": user.is_verified},
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "is_verified": user.is_verified,
+                "status": user.status,
+            },
         },
         status_code=200,
     )
@@ -214,14 +250,30 @@ async def login(
     if not user:
         raise HTTPException(status_code=400, detail="Email o contraseña incorrectos")
 
+    # Verificar si el usuario se registró con un proveedor social
+    if user.provider != AuthProvider.LOCAL:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Esta cuenta fue registrada usando {user.provider}. Por favor, use ese método para iniciar sesión",
+        )
+
     if not verify_password(user_in.password, user.password):
         raise HTTPException(status_code=400, detail="Email o contraseña incorrectos")
 
     if not user.is_verified:
         raise HTTPException(status_code=400, detail="Por favor, verifica tu correo electrónico antes de iniciar sesión")
 
-    # Actualizar estado is_active
-    await db.execute(update(UserModel).where(UserModel.id == user.id).values(is_active=True))
+    if user.status == UserStatus.SUSPENDED:
+        raise HTTPException(status_code=403, detail="Esta cuenta está suspendida")
+    elif user.status == UserStatus.DELETED:
+        raise HTTPException(status_code=403, detail="Esta cuenta ha sido eliminada")
+
+    # Actualizar estado y última fecha de login
+    await db.execute(
+        update(UserModel)
+        .where(UserModel.id == user.id)
+        .values(status=UserStatus.ACTIVE, last_login_at=datetime.now(UTC))
+    )
     await db.commit()
 
     # Crear tokens
@@ -238,7 +290,7 @@ async def login(
         "email": str(user.email),
         "full_name": str(user.full_name),
         "role": str(user.role),
-        "is_active": "true",
+        "status": user.status,
         "created_at": datetime.now(UTC).isoformat(),
     }
 
@@ -269,7 +321,9 @@ async def login(
                 "full_name": user.full_name,
                 "role": user.role,
                 "is_verified": user.is_verified,
-                "is_active": True,
+                "status": user.status,
+                "provider": user.provider,
+                "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
             },
         },
         status_code=200,
@@ -287,7 +341,7 @@ async def logout(
     """Endpoint para cerrar sesión."""
     # Actualizar estado is_active
     result = await db.execute(
-        update(UserModel).where(UserModel.id == user_id).values(is_active=False).returning(UserModel)
+        update(UserModel).where(UserModel.id == user_id).values(status=UserStatus.INACTIVE).returning(UserModel)
     )
 
     user = result.scalar_one_or_none()
@@ -382,7 +436,7 @@ async def refresh_token(
         "email": user_data["email"],
         "full_name": user_data["full_name"],
         "role": user_data["role"],
-        "is_active": "true",
+        "status": user_data["status"],
         "created_at": datetime.now(UTC).isoformat(),
     }
 
@@ -414,7 +468,7 @@ async def refresh_token(
             "email": user_data["email"],
             "full_name": user_data["full_name"],
             "role": user_data["role"],
-            "is_active": True,
+            "status": user_data["status"],
         },
     }
 
@@ -458,7 +512,8 @@ async def get_current_user(token: str = Depends(verify_token_not_blacklisted), d
                     "bio": user.bio,
                     "avatar_url": user.avatar_url,
                     "is_verified": user.is_verified,
-                    "is_active": user.is_active,
+                    "status": user.status,
+                    "provider": user.provider,
                     "created_at": user.created_at.isoformat(),
                     "updated_at": user.updated_at.isoformat(),
                 }
@@ -486,6 +541,19 @@ async def forgot_password(
 
         if not user:
             # Por seguridad, no revelamos si el email existe o no
+            return JSONResponse(
+                content={
+                    "message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"
+                },
+                status_code=200,
+            )
+
+        # Verificar si el usuario se registró con un proveedor social
+        if user.provider != AuthProvider.LOCAL:
+            # Por seguridad, devolvemos el mismo mensaje pero logueamos el intento
+            logger.warning(
+                f"Intento de recuperación de contraseña para cuenta social: {user.email} (provider: {user.provider})"
+            )
             return JSONResponse(
                 content={
                     "message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"
@@ -545,6 +613,14 @@ async def reset_password(
             await invalidate_password_reset_token(redis, reset_data.token)
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+        # Verificar si el usuario se registró con un proveedor social
+        if user.provider != AuthProvider.LOCAL:
+            await invalidate_password_reset_token(redis, reset_data.token)
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se puede restablecer la contraseña para cuentas registradas con {user.provider}",
+            )
+
         # Actualizar la contraseña
         hashed_password = get_password_hash(reset_data.new_password)
         await db.execute(
@@ -599,6 +675,13 @@ async def change_password(
         if not user:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+        # Verificar si el usuario se registró con un proveedor social
+        if user.provider != AuthProvider.LOCAL:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se puede cambiar la contraseña para cuentas registradas con {user.provider}",
+            )
+
         # Verificar la contraseña actual
         if not verify_password(password_data.current_password, user.password):
             raise HTTPException(status_code=400, detail="La contraseña actual es incorrecta")
@@ -614,7 +697,7 @@ async def change_password(
             .where(UserModel.id == user_id)
             .values(
                 password=hashed_password,
-                is_active=False,
+                status=UserStatus.INACTIVE,
                 updated_at=datetime.now(UTC),
             )
         )
@@ -669,16 +752,20 @@ async def delete_account(
         if not verify_password(delete_data.current_password, user.password):
             raise HTTPException(status_code=400, detail="La contraseña es incorrecta")
 
+        # Marcar la cuenta como eliminada en lugar de eliminarla físicamente
+        await db.execute(
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(status=UserStatus.DELETED, updated_at=datetime.now(UTC))
+        )
+        await db.commit()
+
         # Eliminar todas las sesiones del usuario en Redis
         redis_key = f"refresh_token:{user_id}"
         await redis.delete(redis_key)
 
         # Añadir el token actual a la lista negra
         await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
-
-        # Eliminar el usuario de la base de datos
-        await db.execute(UserModel.__table__.delete().where(UserModel.id == user_id))
-        await db.commit()
 
         return JSONResponse(
             content={"message": "Cuenta eliminada exitosamente"},
@@ -722,7 +809,9 @@ async def revoke_all_sessions(
 
         # Marcar al usuario como inactivo
         await db.execute(
-            update(UserModel).where(UserModel.id == user_id).values(is_active=False, updated_at=datetime.now(UTC))
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(status=UserStatus.INACTIVE, updated_at=datetime.now(UTC))
         )
         await db.commit()
 
@@ -809,3 +898,439 @@ async def list_active_sessions(
         logger.error(f"Error inesperado al listar sesiones activas: {str(e)}")
         logger.exception("Stacktrace completo:")
         raise HTTPException(status_code=500, detail="Error inesperado al listar las sesiones activas")
+
+
+@router.post("/reactivate")
+async def reactivate_account(
+    reactivate_data: ReactivateAccount,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Endpoint para reactivar una cuenta que fue eliminada."""
+    try:
+        # Buscar el usuario por email
+        result = await db.execute(select(UserModel).where(UserModel.email == reactivate_data.email))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="No se encontró ninguna cuenta con este correo electrónico")
+
+        if user.status != UserStatus.DELETED:
+            raise HTTPException(status_code=400, detail="Esta cuenta no está eliminada")
+
+        # Verificar la contraseña
+        if not verify_password(reactivate_data.password, user.password):
+            raise HTTPException(status_code=400, detail="La contraseña es incorrecta")
+
+        # Reactivar la cuenta
+        await db.execute(
+            update(UserModel)
+            .where(UserModel.id == user.id)
+            .values(status=UserStatus.ACTIVE, updated_at=datetime.now(UTC), last_login_at=datetime.now(UTC))
+        )
+        await db.commit()
+        await db.refresh(user)
+
+        # Crear tokens para el inicio de sesión automático
+        access_token_data = {"sub": str(user.id), "email": user.email, "role": user.role, "type": "access"}
+        refresh_token_data = {"sub": str(user.id), "type": "refresh"}
+
+        access_token = create_access_token(access_token_data)
+        refresh_token = create_refresh_token(refresh_token_data)
+
+        # Almacenar información en Redis
+        user_refresh_data = {
+            "refresh_token": refresh_token,
+            "user_id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": str(user.role),
+            "status": user.status,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+
+        redis_key = f"refresh_token:{user.id}"
+        await redis.hset(redis_key, mapping=user_refresh_data)
+        await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
+
+        return JSONResponse(
+            content={
+                "message": "Cuenta reactivada exitosamente",
+                "access_token": access_token,
+                "token_type": "bearer",
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "full_name": user.full_name,
+                    "role": user.role,
+                    "bio": user.bio,
+                    "avatar_url": user.avatar_url,
+                    "is_verified": user.is_verified,
+                    "status": user.status,
+                    "provider": user.provider,
+                    "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
+                },
+            },
+            status_code=200,
+        )
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al reactivar la cuenta: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail=f"Error inesperado al reactivar la cuenta: {str(e)}")
+
+
+@router.get("/github/login")
+async def github_login():
+    """Endpoint para iniciar el flujo de autenticación con GitHub."""
+    try:
+        logger.info("Generando URL de autorización de GitHub")
+
+        if not settings.GITHUB_CLIENT_ID:
+            raise HTTPException(
+                status_code=500,
+                detail="Error de configuración: Client ID de GitHub no configurado",
+            )
+
+        # Agregar un parámetro state para seguridad
+        state = token_urlsafe(32)
+
+        github_auth_url = (
+            "https://github.com/login/oauth/authorize"
+            f"?client_id={settings.GITHUB_CLIENT_ID}"
+            f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
+            f"&scope=user:email"
+            f"&state={state}"
+        )
+
+        logger.debug(f"URL de autorización generada: {github_auth_url}")
+        logger.debug(f"Client ID usado: {settings.GITHUB_CLIENT_ID}")
+        logger.debug(f"Redirect URI configurado: {settings.GITHUB_REDIRECT_URI}")
+
+        return JSONResponse(
+            content={
+                "authorization_url": github_auth_url,
+                "state": state,
+            },
+            status_code=200,
+        )
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al generar URL de autorización: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500,
+            detail="Error inesperado al generar URL de autorización",
+        )
+
+
+@router.post("/exchange-temp-code")
+async def exchange_temp_code(
+    request: ExchangeCodeRequest,
+    response: Response,
+    redis: Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_db),
+):
+    """Endpoint para intercambiar el código temporal por los tokens de acceso."""
+    try:
+        logger.debug(f"Recibido código temporal para intercambio: {request.temp_code}")
+
+        # Verificar que el código no esté vacío
+        if not request.temp_code:
+            raise HTTPException(status_code=400, detail="El código temporal no puede estar vacío")
+
+        # Recuperar datos temporales
+        auth_data = await get_temp_auth_data(redis, request.temp_code)
+
+        if not auth_data:
+            # Verificar si el código existe en Redis (para mejor debugging)
+            redis_key = f"temp_auth:{request.temp_code}"
+            exists = await redis.exists(redis_key)
+            logger.error(f"Verificación adicional - ¿La clave existe?: {exists}")
+
+            if exists:
+                all_keys = await redis.hkeys(redis_key)
+                logger.error(f"Las claves disponibles en el hash son: {all_keys}")
+                raise HTTPException(status_code=500, detail="Error al recuperar los datos temporales")
+            else:
+                logger.error(f"Código temporal no encontrado: {request.temp_code}")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Código temporal inválido o expirado. Asegúrate de usar el código exacto sin el prefijo 'temp_auth:'",
+                )
+
+        logger.debug(f"Datos temporales recuperados exitosamente: {auth_data}")
+
+        try:
+            # Actualizar estado del usuario a activo
+            logger.debug(f"Actualizando estado del usuario {auth_data['user_id']} a ACTIVE")
+            result = await db.execute(
+                update(UserModel)
+                .where(UserModel.id == UUID(auth_data["user_id"]))
+                .values(status=UserStatus.ACTIVE, updated_at=datetime.now(UTC))
+                .returning(UserModel)
+            )
+            user = result.scalar_one_or_none()
+
+            if not user:
+                logger.error(f"No se encontró el usuario con ID {auth_data['user_id']}")
+                raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+            await db.commit()
+            logger.debug(f"Estado del usuario actualizado exitosamente a {user.status}")
+
+        except Exception as e:
+            logger.error(f"Error al actualizar el estado del usuario: {str(e)}")
+            await db.rollback()
+            raise HTTPException(status_code=500, detail="Error al actualizar el estado del usuario")
+
+        # Almacenar información del refresh token en Redis
+        user_refresh_data = {
+            "refresh_token": auth_data["jwt_refresh_token"],
+            "user_id": auth_data["user_id"],
+            "email": auth_data["email"],
+            "full_name": auth_data["full_name"],
+            "role": auth_data["role"],
+            "status": UserStatus.ACTIVE.value,  # Usar el valor del enum
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+
+        redis_key = f"refresh_token:{auth_data['user_id']}"
+        await redis.hset(redis_key, mapping=user_refresh_data)
+        await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
+
+        # Configurar cookie del refresh token
+        response.set_cookie(
+            key="refresh_token",
+            value=auth_data["jwt_refresh_token"],
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 60 * 60,  # 7 días
+            path="/auth/refresh",
+        )
+
+        # Devolver respuesta con tokens y datos del usuario actualizados
+        return JSONResponse(
+            content={
+                "message": "Inicio de sesión con GitHub exitoso",
+                "access_token": auth_data["jwt_access_token"],
+                "token_type": "bearer",
+                "user": {
+                    "id": auth_data["user_id"],
+                    "email": auth_data["email"],
+                    "full_name": auth_data["full_name"],
+                    "avatar_url": auth_data.get("avatar_url", ""),
+                    "provider": auth_data["provider"],
+                    "role": auth_data["role"],
+                    "status": UserStatus.ACTIVE.value,  # Usar el valor actualizado
+                },
+            },
+            status_code=200,
+        )
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error al intercambiar código temporal: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error inesperado al procesar el código temporal: {str(e)}",
+        )
+
+
+@router.get("/github/callback")
+async def github_callback(
+    code: str,
+    state: str,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Endpoint para manejar el callback de GitHub y obtener el token de acceso."""
+    try:
+        if not settings.GITHUB_CLIENT_ID:
+            logger.error("Client ID no configurado")
+            raise HTTPException(
+                status_code=500,
+                detail="Error de configuración: Client ID de GitHub no configurado",
+            )
+
+        if not settings.GITHUB_CLIENT_SECRET:
+            logger.error("Client Secret no configurado")
+            raise HTTPException(
+                status_code=500,
+                detail="Error de configuración: Client Secret de GitHub no configurado",
+            )
+
+        logger.info(f"Iniciando intercambio de código por token de acceso. Code length: {len(code)}")
+        logger.debug(f"Código recibido: {code}")
+        logger.debug(f"State recibido: {state}")
+        logger.debug(f"URL configurada: {settings.GITHUB_REDIRECT_URI}")
+        logger.debug(f"URL actual de la petición: {request.url}")
+        logger.debug(f"Client ID configurado: {settings.GITHUB_CLIENT_ID}")
+
+        # Intercambiar el código por un token de acceso
+        async with httpx.AsyncClient() as client:
+            request_data = {
+                "client_id": settings.GITHUB_CLIENT_ID,
+                "client_secret": settings.GITHUB_CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": settings.GITHUB_REDIRECT_URI,
+            }
+
+            # Log seguro (ocultando el client secret)
+            safe_log_data = request_data.copy()
+            safe_log_data["client_secret"] = "***" + settings.GITHUB_CLIENT_SECRET[-4:]
+            logger.debug(f"Datos de la petición a GitHub: {safe_log_data}")
+
+            response = await client.post(
+                "https://github.com/login/oauth/access_token",
+                headers={
+                    "Accept": "application/json",
+                },
+                data=request_data,
+                timeout=30.0,
+            )
+
+            logger.debug(f"Respuesta de GitHub - Status: {response.status_code}")
+            logger.debug(f"Respuesta de GitHub - Headers: {response.headers}")
+            logger.debug(f"Respuesta de GitHub - Body: {response.text}")
+
+            if response.status_code != 200:
+                logger.error(f"Error en la respuesta de GitHub: {response.text}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Error al obtener el token de acceso de GitHub. Status: {response.status_code}, Response: {response.text}",
+                )
+
+            try:
+                token_data = response.json()
+            except Exception as e:
+                logger.error(f"Error al parsear la respuesta JSON: {response.text}")
+                logger.exception("Error detallado:")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error al procesar la respuesta de GitHub: {str(e)}",
+                )
+
+            if "error" in token_data:
+                logger.error(f"Error en token_data: {token_data}")
+                error_message = token_data.get("error_description", token_data["error"])
+                if "incorrect or expired" in error_message:
+                    error_message += ". Por favor, inicia el proceso de autorización nuevamente desde /github/login"
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Error de GitHub: {error_message}",
+                )
+
+            access_token = token_data.get("access_token")
+            if not access_token:
+                logger.error("No se encontró access_token en la respuesta")
+                raise HTTPException(
+                    status_code=400,
+                    detail="No se pudo obtener el token de acceso",
+                )
+
+            # Usar el flujo de social_login para crear/actualizar el usuario
+            social_login_data = SocialLoginRequest(provider=AuthProvider.GITHUB, access_token=access_token)
+
+            # Obtener información del perfil de GitHub
+            social_profile = await verify_social_token(social_login_data.provider, social_login_data.access_token)
+
+            if not social_profile.email:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No se pudo obtener un email verificado del proveedor social",
+                )
+
+            # Buscar si el usuario ya existe
+            result = await db.execute(select(UserModel).where(UserModel.email == social_profile.email))
+            user = result.scalar_one_or_none()
+
+            if not user:
+                # Crear nuevo usuario
+                user = UserModel(
+                    email=social_profile.email,
+                    full_name=social_profile.full_name or "",
+                    password="",  # No se requiere contraseña para login social
+                    role=UserRole.USER,
+                    avatar_url=social_profile.avatar_url,
+                    is_verified=True,  # Los usuarios de login social se consideran verificados
+                    status=UserStatus.INACTIVE,  # Inicialmente inactivo hasta completar el exchange
+                    provider=social_login_data.provider,
+                    provider_id=social_profile.provider_id,
+                    last_login_at=datetime.now(UTC),
+                )
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
+            else:
+                # Actualizar información del usuario si es necesario
+                update_data = {
+                    "last_login_at": datetime.now(UTC),
+                    "status": UserStatus.INACTIVE,  # Establecer como inactivo hasta completar el exchange
+                }
+
+                if social_profile.avatar_url and not user.avatar_url:
+                    update_data["avatar_url"] = social_profile.avatar_url
+                if social_profile.full_name and not user.full_name:
+                    update_data["full_name"] = social_profile.full_name
+                if not user.provider_id and user.provider == social_login_data.provider:
+                    update_data["provider_id"] = social_profile.provider_id
+                if user.provider != AuthProvider.GITHUB:
+                    update_data["provider"] = AuthProvider.GITHUB
+
+                await db.execute(
+                    update(UserModel).where(UserModel.id == user.id).values(**update_data, updated_at=datetime.now(UTC))
+                )
+                await db.commit()
+                await db.refresh(user)
+
+            # Crear tokens JWT para la sesión
+            access_token_data = {
+                "sub": str(user.id),
+                "email": user.email,
+                "role": user.role,
+                "type": "access",
+            }
+            refresh_token_data = {"sub": str(user.id), "type": "refresh"}
+
+            jwt_access_token = create_access_token(access_token_data)
+            jwt_refresh_token = create_refresh_token(refresh_token_data)
+
+            # Crear un objeto con los datos necesarios
+            auth_data = {
+                "jwt_access_token": jwt_access_token,
+                "jwt_refresh_token": jwt_refresh_token,
+                "user_id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name or "",
+                "avatar_url": user.avatar_url or "",
+                "provider": user.provider,
+                "role": user.role,
+            }
+
+            # Generar código temporal
+            temp_code = await generate_temporary_auth_code(redis, auth_data)
+
+            # Redirigir al frontend solo con el código temporal
+            frontend_url = "http://localhost/"
+            redirect_url = f"{frontend_url}?temp_code={temp_code}"
+
+            return RedirectResponse(url=redirect_url, status_code=303)
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado en el callback de GitHub: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error inesperado durante la autenticación con GitHub: {str(e)}",
+        )

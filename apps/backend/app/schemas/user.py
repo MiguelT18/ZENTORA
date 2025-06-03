@@ -2,8 +2,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
-
-from app.db.models.user import UserRole
+from app.core.enums import UserRole, UserStatus, AuthProvider
 
 
 class UserBase(BaseModel):
@@ -12,13 +11,17 @@ class UserBase(BaseModel):
     role: UserRole = UserRole.USER
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
+    status: UserStatus = UserStatus.ACTIVE
+    provider: AuthProvider = AuthProvider.LOCAL
+    provider_id: Optional[str] = None
+    last_login_at: Optional[datetime] = None
 
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str
-    role: str = "user"
+    role: UserRole = UserRole.USER
     bio: str | None = None
     avatar_url: str | None = None
 
@@ -85,9 +88,29 @@ class ActiveSession(BaseModel):
     full_name: str
     role: str
     created_at: datetime
-    is_active: bool
+    status: UserStatus
 
 
 class ActiveSessionsList(BaseModel):
     total: int
     sessions: list[ActiveSession]
+
+
+class SocialLoginRequest(BaseModel):
+    provider: AuthProvider
+    access_token: str
+
+
+class SocialProfile(BaseModel):
+    provider_id: str
+    email: EmailStr
+    full_name: str | None = None
+    avatar_url: str | None = None
+    provider: AuthProvider
+
+
+class ReactivateAccount(BaseModel):
+    """Esquema para reactivar una cuenta eliminada."""
+
+    email: EmailStr
+    password: str = Field(..., min_length=8, description="Contraseña del usuario")
