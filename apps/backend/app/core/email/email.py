@@ -7,6 +7,9 @@ from fastapi import HTTPException
 from typing import Any, Dict
 import os
 import jinja2
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.models.user import User as UserModel
 
 # Configurar logging con más detalle
 logger = logging.getLogger(__name__)
@@ -73,21 +76,47 @@ async def send_email(
         raise HTTPException(status_code=500, detail=f"Error inesperado al enviar el correo: {str(e)}")
 
 
-async def send_verification_email(email_to: str, token: str) -> None:
+async def send_verification_email(email_to: str, token: str, db: AsyncSession | None = None) -> None:
     """
     Envía un correo de verificación.
 
     Args:
         email_to: Dirección de correo del destinatario
         token: Token de verificación
+        db: Sesión de base de datos (opcional)
     """
-    verification_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    # Intentar obtener el nombre completo de la base de datos
+    full_name = email_to.split("@")[0]  # Valor por defecto
+    logger.debug(f"Valor por defecto de full_name: {full_name}")
 
+    if db:
+        logger.debug("Sesión de base de datos proporcionada, intentando obtener nombre completo")
+        try:
+            result = await db.execute(select(UserModel).where(UserModel.email == email_to))
+            user = result.scalar_one_or_none()
+            logger.debug(f"Usuario encontrado: {user}")
+            if user:
+                logger.debug(f"Nombre completo del usuario en DB: {user.full_name}")
+
+            if user and user.full_name:
+                full_name = user.full_name
+                logger.debug(f"Usando nombre completo de la base de datos: {full_name}")
+            else:
+                logger.debug("No se encontró usuario o nombre completo en la base de datos")
+        except Exception as e:
+            logger.warning(f"No se pudo obtener el nombre completo de la base de datos: {str(e)}")
+            logger.exception("Error detallado:")
+    else:
+        logger.debug("No se proporcionó sesión de base de datos")
+
+    logger.debug(f"Nombre final a usar en el template: {full_name}")
     template_data = {
         "project_name": settings.PROJECT_NAME,
-        "verification_url": verification_url,
+        "verification_code": token,
         "email": email_to,
+        "full_name": full_name,
     }
+    logger.debug(f"Datos del template: {template_data}")
 
     await send_email(
         email_to=email_to,
@@ -98,21 +127,47 @@ async def send_verification_email(email_to: str, token: str) -> None:
     )
 
 
-async def send_password_reset_email(email_to: str, token: str) -> None:
+async def send_password_reset_email(email_to: str, token: str, db: AsyncSession | None = None) -> None:
     """
     Envía un correo para restablecer la contraseña.
 
     Args:
         email_to: Dirección de correo del destinatario
         token: Token de restablecimiento
+        db: Sesión de base de datos (opcional)
     """
-    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    # Intentar obtener el nombre completo de la base de datos
+    full_name = email_to.split("@")[0]  # Valor por defecto
+    logger.debug(f"Valor por defecto de full_name: {full_name}")
 
+    if db:
+        logger.debug("Sesión de base de datos proporcionada, intentando obtener nombre completo")
+        try:
+            result = await db.execute(select(UserModel).where(UserModel.email == email_to))
+            user = result.scalar_one_or_none()
+            logger.debug(f"Usuario encontrado: {user}")
+            if user:
+                logger.debug(f"Nombre completo del usuario en DB: {user.full_name}")
+
+            if user and user.full_name:
+                full_name = user.full_name
+                logger.debug(f"Usando nombre completo de la base de datos: {full_name}")
+            else:
+                logger.debug("No se encontró usuario o nombre completo en la base de datos")
+        except Exception as e:
+            logger.warning(f"No se pudo obtener el nombre completo de la base de datos: {str(e)}")
+            logger.exception("Error detallado:")
+    else:
+        logger.debug("No se proporcionó sesión de base de datos")
+
+    logger.debug(f"Nombre final a usar en el template: {full_name}")
     template_data = {
         "project_name": settings.PROJECT_NAME,
-        "reset_url": reset_url,
+        "reset_code": token,
         "email": email_to,
+        "full_name": full_name,
     }
+    logger.debug(f"Datos del template: {template_data}")
 
     await send_email(
         email_to=email_to,

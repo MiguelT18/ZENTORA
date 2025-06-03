@@ -21,14 +21,21 @@
       margin-top: 20px;
     }
 
-    .button {
-      display: inline-block;
-      padding: 10px 20px;
-      background-color: #007bff;
-      color: white;
-      text-decoration: none;
+    .code-container {
+      background-color: #fff;
+      border: 2px dashed #007bff;
       border-radius: 5px;
+      padding: 15px;
       margin: 20px 0;
+      text-align: center;
+    }
+
+    .verification-code {
+      font-size: 24px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #007bff;
+      font-family: monospace;
     }
 
     .footer {
@@ -43,15 +50,14 @@
   <div class="container">
     <h1>¡Bienvenido a ZENTORA!</h1>
     <p>Hola {{ full_name }},</p>
-    <p>Gracias por registrarte en ZENTORA. Para completar tu registro y activar tu cuenta, por favor haz clic en el
-      siguiente botón:</p>
+    <p>Gracias por registrarte en ZENTORA. Para completar tu registro y activar tu cuenta, por favor copia el siguiente
+      código de verificación y pégalo en la página de verificación:</p>
 
-    <a href="{{ verification_url }}" class="button">Verificar correo electrónico</a>
+    <div class="code-container">
+      <div class="verification-code">{{ verification_code }}</div>
+    </div>
 
-    <p>O copia y pega el siguiente enlace en tu navegador:</p>
-    <p>{{ verification_url }}</p>
-
-    <p>Este enlace expirará en 24 horas por razones de seguridad.</p>
+    <p>Este código expirará en 24 horas por razones de seguridad.</p>
 
     <p>Si no has creado una cuenta en ZENTORA, puedes ignorar este correo.</p>
 

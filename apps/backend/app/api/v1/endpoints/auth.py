@@ -83,26 +83,8 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
         verification_token = await generate_verification_token(redis, user_in.email)
         logger.info(f"Token de verificación generado para {user_in.email}")
 
-        # 3. Intentar enviar el correo ANTES de crear el usuario
-        logger.debug(f"Intentando enviar correo de verificación a {user_in.email}")
-        email_sent = False
-        try:
-            await send_verification_email(user_in.email, verification_token)
-            email_sent = True
-            logger.info(f"Correo de verificación enviado exitosamente a {user_in.email}")
-        except Exception as e:
-            logger.error(f"Error al enviar correo de verificación: {str(e)}")
-            await redis.delete(f"email_verification:{verification_token}")
-            raise HTTPException(status_code=500, detail=f"Error al enviar el correo de verificación: {str(e)}")
-
-        if not email_sent:
-            logger.error("El correo no se envió pero no se detectó ninguna excepción")
-            await redis.delete(f"email_verification:{verification_token}")
-            raise HTTPException(status_code=500, detail="No se pudo enviar el correo de verificación")
-
-        # 4. Solo si el correo se envió correctamente, crear el usuario
+        # 3. Crear el usuario primero
         logger.debug("Creando usuario en la base de datos")
-
         try:
             db_user = UserModel(
                 email=user_in.email,
@@ -128,6 +110,24 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
                 status_code=500, detail=f"Error al crear el usuario en la base de datos: {str(db_error)}"
             )
 
+        # 4. Intentar enviar el correo después de crear el usuario
+        logger.debug(f"Intentando enviar correo de verificación a {user_in.email}")
+        email_sent = False
+        try:
+            await send_verification_email(user_in.email, verification_token, db)
+            email_sent = True
+            logger.info(f"Correo de verificación enviado exitosamente a {user_in.email}")
+        except Exception as e:
+            logger.error(f"Error al enviar correo de verificación: {str(e)}")
+            # No eliminamos el usuario creado, solo el token
+            await redis.delete(f"email_verification:{verification_token}")
+            raise HTTPException(status_code=500, detail=f"Error al enviar el correo de verificación: {str(e)}")
+
+        if not email_sent:
+            logger.error("El correo no se envió pero no se detectó ninguna excepción")
+            await redis.delete(f"email_verification:{verification_token}")
+            raise HTTPException(status_code=500, detail="No se pudo enviar el correo de verificación")
+
         return JSONResponse(
             content={
                 "message": "Usuario creado exitosamente. Por favor, verifica tu correo electrónico.",
@@ -147,7 +147,6 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
         )
 
     except HTTPException as http_error:
-        logger.error(f"Error HTTP durante el registro: {http_error.detail}")
         raise http_error
     except Exception as e:
         logger.error(f"Error inesperado durante el registro: {str(e)}")
@@ -252,7 +251,7 @@ async def resend_verification_email(
     verification_token = await generate_verification_token(redis, email_request.email)
 
     # Enviar nuevo email de verificación
-    await send_verification_email(email_request.email, verification_token)
+    await send_verification_email(email_request.email, verification_token, db)
 
     return JSONResponse(
         content={"message": "Se ha enviado un nuevo correo de verificación", "email": email_request.email},
@@ -319,7 +318,7 @@ async def login(
     # Almacenar hash en Redis
     redis_key = f"refresh_token:{user.id}"
     await redis.hset(redis_key, mapping=user_refresh_data)
-    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días en segundos
+    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
 
     # Configurar cookie segura para el refresh token
     response.set_cookie(
@@ -593,7 +592,7 @@ async def forgot_password(
         reset_token = await generate_password_reset_token(redis, reset_request.email)
 
         # Enviar correo con el token
-        await send_password_reset_email(reset_request.email, reset_token)
+        await send_password_reset_email(reset_request.email, reset_token, db)
 
         return JSONResponse(
             content={"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"},
