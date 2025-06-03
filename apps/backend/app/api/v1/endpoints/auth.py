@@ -21,6 +21,7 @@ from app.schemas.user import (
     AuthProvider,
     UserRole,
     ReactivateAccount,
+    UserProfileUpdate,
 )
 from app.core.auth.security import (
     get_password_hash,
@@ -1610,3 +1611,70 @@ async def google_callback(
             status_code=500,
             detail=f"Error inesperado durante la autenticación con Google: {str(e)}",
         )
+
+
+@router.patch("/me/update")
+async def update_profile(
+    profile_update: UserProfileUpdate,
+    token: str = Depends(verify_token_not_blacklisted),
+    db: AsyncSession = Depends(get_db),
+):
+    """Endpoint para actualizar la información del perfil del usuario."""
+    try:
+        # Decodificar el token para obtener el ID del usuario
+        payload = decode_token(token)
+        if not payload or "sub" not in payload:
+            raise HTTPException(status_code=401, detail="Token inválido o mal formado")
+
+        user_id = payload["sub"]
+
+        # Buscar el usuario en la base de datos
+        result = await db.execute(select(UserModel).where(UserModel.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        # Preparar los datos de actualización
+        update_data = {}
+        if profile_update.full_name is not None:
+            update_data["full_name"] = profile_update.full_name
+        if profile_update.bio is not None:
+            update_data["bio"] = profile_update.bio
+        if profile_update.avatar_url is not None:
+            update_data["avatar_url"] = profile_update.avatar_url
+
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
+
+        # Actualizar el usuario
+        update_data["updated_at"] = datetime.now(UTC)
+        await db.execute(update(UserModel).where(UserModel.id == user_id).values(**update_data))
+        await db.commit()
+        await db.refresh(user)
+
+        return JSONResponse(
+            content={
+                "message": "Perfil actualizado exitosamente",
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "full_name": user.full_name,
+                    "bio": user.bio,
+                    "avatar_url": user.avatar_url,
+                    "role": user.role,
+                    "is_verified": user.is_verified,
+                    "status": user.status,
+                    "provider": user.provider,
+                    "updated_at": user.updated_at.isoformat(),
+                },
+            },
+            status_code=200,
+        )
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al actualizar el perfil: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail=f"Error inesperado al actualizar el perfil: {str(e)}")

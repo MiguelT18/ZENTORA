@@ -114,3 +114,11 @@ class ReactivateAccount(BaseModel):
 
     email: EmailStr
     password: str = Field(..., min_length=8, description="Contraseña del usuario")
+
+
+class UserProfileUpdate(BaseModel):
+    """Esquema para actualizar el perfil del usuario."""
+
+    full_name: str | None = Field(None, min_length=1, max_length=100)
+    bio: str | None = Field(None, max_length=500)
+    avatar_url: str | None = Field(None, max_length=255)
