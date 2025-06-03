@@ -1292,6 +1292,13 @@ async def github_callback(
                 await db.commit()
                 await db.refresh(user)
             else:
+                # Verificar si el usuario ya está registrado con otro proveedor social
+                if user.provider != social_login_data.provider:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método.",
+                    )
+
                 # Actualizar información del usuario si es necesario
                 update_data = {
                     "last_login_at": datetime.now(UTC),
@@ -1302,10 +1309,8 @@ async def github_callback(
                     update_data["avatar_url"] = social_profile.avatar_url
                 if social_profile.full_name and not user.full_name:
                     update_data["full_name"] = social_profile.full_name
-                if not user.provider_id and user.provider == social_login_data.provider:
+                if not user.provider_id:
                     update_data["provider_id"] = social_profile.provider_id
-                if user.provider != AuthProvider.GITHUB:
-                    update_data["provider"] = AuthProvider.GITHUB
 
                 await db.execute(
                     update(UserModel).where(UserModel.id == user.id).values(**update_data, updated_at=datetime.now(UTC))
@@ -1354,4 +1359,254 @@ async def github_callback(
         raise HTTPException(
             status_code=500,
             detail=f"Error inesperado durante la autenticación con GitHub: {str(e)}",
+        )
+
+
+@router.get("/google/login")
+async def google_login(redis: Redis = Depends(get_redis)):
+    """Endpoint para iniciar el flujo de autenticación con Google."""
+    try:
+        logger.info("Generando URL de autorización de Google")
+
+        if not settings.GOOGLE_CLIENT_ID:
+            raise HTTPException(
+                status_code=500,
+                detail="Error de configuración: Client ID de Google no configurado",
+            )
+
+        # Generar estado para seguridad
+        state = token_urlsafe(32)
+
+        # Almacenar el state en Redis con expiración de 10 minutos
+        await redis.set(f"oauth_state:{state}", "google", ex=600)
+
+        # Construir la URL de autorización de Google
+        google_auth_url = (
+            "https://accounts.google.com/o/oauth2/v2/auth"
+            f"?client_id={settings.GOOGLE_CLIENT_ID}"
+            f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
+            f"&response_type=code"
+            f"&scope=email profile"
+            f"&access_type=offline"
+            f"&state={state}"
+        )
+
+        logger.debug(f"URL de autorización generada: {google_auth_url}")
+        logger.debug(f"Client ID usado: {settings.GOOGLE_CLIENT_ID}")
+        logger.debug(f"Redirect URI configurado: {settings.GOOGLE_REDIRECT_URI}")
+        logger.debug(f"State generado: {state}")
+
+        return JSONResponse(
+            content={
+                "authorization_url": google_auth_url,
+                "state": state,
+            },
+            status_code=200,
+        )
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado al generar URL de autorización: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500,
+            detail="Error inesperado al generar URL de autorización",
+        )
+
+
+@router.get("/google/callback")
+async def google_callback(
+    request: Request,
+    response: Response,
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    state: str | None = None,
+):
+    """Endpoint para manejar el callback de Google y obtener el token de acceso."""
+    try:
+        if not settings.GOOGLE_CLIENT_ID:
+            logger.error("Client ID no configurado")
+            raise HTTPException(
+                status_code=500,
+                detail="Error de configuración: Client ID de Google no configurado",
+            )
+
+        if not settings.GOOGLE_CLIENT_SECRET:
+            logger.error("Client Secret no configurado")
+            raise HTTPException(
+                status_code=500,
+                detail="Error de configuración: Client Secret de Google no configurado",
+            )
+
+        # Verificar el state si está presente
+        if state:
+            stored_provider = await redis.get(f"oauth_state:{state}")
+            if not stored_provider or stored_provider != "google":
+                logger.error(f"State inválido o expirado: {state}")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Estado de autenticación inválido o expirado",
+                )
+            # Eliminar el state usado
+            await redis.delete(f"oauth_state:{state}")
+
+        logger.info(f"Iniciando intercambio de código por token de acceso. Code length: {len(code)}")
+        logger.debug(f"Código recibido: {code}")
+        logger.debug(f"State recibido: {state}")
+        logger.debug(f"URL configurada: {settings.GOOGLE_REDIRECT_URI}")
+        logger.debug(f"URL actual de la petición: {request.url}")
+        logger.debug(f"Client ID configurado: {settings.GOOGLE_CLIENT_ID}")
+
+        # Intercambiar el código por un token de acceso
+        async with httpx.AsyncClient() as client:
+            token_request_data = {
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+                "grant_type": "authorization_code",
+            }
+
+            # Log seguro (ocultando el client secret)
+            safe_log_data = token_request_data.copy()
+            safe_log_data["client_secret"] = "***" + settings.GOOGLE_CLIENT_SECRET[-4:]
+            logger.debug(f"Datos de la petición a Google: {safe_log_data}")
+
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data=token_request_data,
+                timeout=30.0,
+            )
+
+            logger.debug(f"Respuesta de Google - Status: {token_response.status_code}")
+            logger.debug(f"Respuesta de Google - Headers: {token_response.headers}")
+            logger.debug(f"Respuesta de Google - Body: {token_response.text}")
+
+            if token_response.status_code != 200:
+                logger.error(f"Error en la respuesta de Google: {token_response.text}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Error al obtener el token de acceso de Google. Status: {token_response.status_code}",
+                )
+
+            try:
+                token_data = token_response.json()
+            except Exception as e:
+                logger.error(f"Error al parsear la respuesta JSON: {token_response.text}")
+                logger.exception("Error detallado:")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error al procesar la respuesta de Google: {str(e)}",
+                )
+
+            access_token = token_data.get("access_token")
+            if not access_token:
+                logger.error("No se encontró access_token en la respuesta")
+                raise HTTPException(
+                    status_code=400,
+                    detail="No se pudo obtener el token de acceso",
+                )
+
+            # Usar el flujo de social_login para crear/actualizar el usuario
+            social_login_data = SocialLoginRequest(provider=AuthProvider.GOOGLE, access_token=access_token)
+
+            # Obtener información del perfil de Google
+            social_profile = await verify_social_token(social_login_data.provider, social_login_data.access_token)
+
+            if not social_profile.email:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No se pudo obtener un email verificado del proveedor social",
+                )
+
+            # Buscar si el usuario ya existe
+            result = await db.execute(select(UserModel).where(UserModel.email == social_profile.email))
+            user = result.scalar_one_or_none()
+
+            if not user:
+                # Crear nuevo usuario
+                user = UserModel(
+                    email=social_profile.email,
+                    full_name=social_profile.full_name or "",
+                    password="",  # No se requiere contraseña para login social
+                    role=UserRole.USER,
+                    avatar_url=social_profile.avatar_url,
+                    is_verified=True,  # Los usuarios de login social se consideran verificados
+                    status=UserStatus.INACTIVE,  # Inicialmente inactivo hasta completar el exchange
+                    provider=social_login_data.provider,
+                    provider_id=social_profile.provider_id,
+                    last_login_at=datetime.now(UTC),
+                )
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
+            else:
+                # Verificar si el usuario ya está registrado con otro proveedor social
+                if user.provider != social_login_data.provider:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método.",
+                    )
+
+                # Actualizar información del usuario si es necesario
+                update_data = {
+                    "last_login_at": datetime.now(UTC),
+                    "status": UserStatus.INACTIVE,  # Establecer como inactivo hasta completar el exchange
+                }
+
+                if social_profile.avatar_url and not user.avatar_url:
+                    update_data["avatar_url"] = social_profile.avatar_url
+                if social_profile.full_name and not user.full_name:
+                    update_data["full_name"] = social_profile.full_name
+                if not user.provider_id:
+                    update_data["provider_id"] = social_profile.provider_id
+
+                await db.execute(
+                    update(UserModel).where(UserModel.id == user.id).values(**update_data, updated_at=datetime.now(UTC))
+                )
+                await db.commit()
+                await db.refresh(user)
+
+            # Crear tokens JWT para la sesión
+            access_token_data = {
+                "sub": str(user.id),
+                "email": user.email,
+                "role": user.role,
+                "type": "access",
+            }
+            refresh_token_data = {"sub": str(user.id), "type": "refresh"}
+
+            jwt_access_token = create_access_token(access_token_data)
+            jwt_refresh_token = create_refresh_token(refresh_token_data)
+
+            # Crear un objeto con los datos necesarios
+            auth_data = {
+                "jwt_access_token": jwt_access_token,
+                "jwt_refresh_token": jwt_refresh_token,
+                "user_id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name or "",
+                "avatar_url": user.avatar_url or "",
+                "provider": user.provider,
+                "role": user.role,
+            }
+
+            # Generar código temporal
+            temp_code = await generate_temporary_auth_code(redis, auth_data)
+
+            # Redirigir al frontend solo con el código temporal
+            frontend_url = "http://localhost/"
+            redirect_url = f"{frontend_url}?temp_code={temp_code}"
+
+            return RedirectResponse(url=redirect_url, status_code=303)
+
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado en el callback de Google: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error inesperado durante la autenticación con Google: {str(e)}",
         )

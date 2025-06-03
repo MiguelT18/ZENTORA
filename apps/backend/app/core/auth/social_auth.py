@@ -63,7 +63,9 @@ async def verify_github_token(access_token: str) -> SocialProfile:
 
 async def verify_social_token(provider: str, access_token: str) -> SocialProfile:
     """Verifica un token de acceso social y devuelve información del usuario."""
-    if provider == "github":
+    if provider == AuthProvider.GITHUB:
         return await verify_github_token(access_token)
+    elif provider == AuthProvider.GOOGLE:
+        return await verify_google_token(access_token)
     else:
         raise ValueError(f"Proveedor no soportado: {provider}")

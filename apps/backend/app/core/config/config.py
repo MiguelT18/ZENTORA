@@ -83,6 +83,13 @@ class Settings(BaseSettings):
         "GITHUB_REDIRECT_URI", "http://localhost/api/v1/auth/github/callback"
     )
 
+    # Google OAuth Settings
+    GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
+    GOOGLE_REDIRECT_URI: Optional[str] = os.getenv(
+        "GOOGLE_REDIRECT_URI", "http://localhost/api/v1/auth/google/callback"
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env", case_sensitive=True, env_file_encoding="utf-8", extra="allow"  # Permitir campos extra
     )
@@ -143,3 +150,19 @@ if settings.GITHUB_REDIRECT_URI:
     logger.info(f"GITHUB_REDIRECT_URI está configurada: {settings.GITHUB_REDIRECT_URI}")
 else:
     logger.warning("GITHUB_REDIRECT_URI no está configurada")
+
+# Verificar configuraciones de Google
+if settings.GOOGLE_CLIENT_ID:
+    logger.info("GOOGLE_CLIENT_ID está configurada")
+else:
+    logger.warning("GOOGLE_CLIENT_ID no está configurada")
+
+if settings.GOOGLE_CLIENT_SECRET:
+    logger.info("GOOGLE_CLIENT_SECRET está configurada")
+else:
+    logger.warning("GOOGLE_CLIENT_SECRET no está configurada")
+
+if settings.GOOGLE_REDIRECT_URI:
+    logger.info(f"GOOGLE_REDIRECT_URI está configurada: {settings.GOOGLE_REDIRECT_URI}")
+else:
+    logger.warning("GOOGLE_REDIRECT_URI no está configurada")
