@@ -63,34 +63,35 @@ ENVIRONMENT=development
 EOL
 fi
 
+# Iniciar el contenedor backend si no está corriendo
+echo -e "${BLUE}🚀 Iniciando el contenedor backend...${NC}"
+docker compose up -d backend
+
+# Esperar a que el backend esté listo
+wait_for_service backend || true
+
 # Inicializar la base de datos usando docker compose
 echo -e "${BLUE}🗄️ Inicializando la base de datos...${NC}"
-docker compose exec -T backend poetry run alembic upgrade head
+
+# Intentar ejecutar las migraciones varias veces si falla
+max_attempts=3
+attempt=1
+
+while [ $attempt -le $max_attempts ]; do
+    if docker compose exec backend poetry run alembic upgrade head; then
+        echo -e "${GREEN}✅ Migraciones aplicadas correctamente!${NC}"
+        break
+    else
+        echo -e "${RED}⚠️ Intento $attempt de $max_attempts falló${NC}"
+        if [ $attempt -eq $max_attempts ]; then
+            echo -e "${RED}❌ No se pudieron aplicar las migraciones después de $max_attempts intentos${NC}"
+            exit 1
+        fi
+        echo -e "${BLUE}🔄 Esperando antes de reintentar...${NC}"
+        sleep 5
+        attempt=$((attempt + 1))
+    fi
+done
 
 echo -e "${GREEN}✅ Configuración completada!${NC}"
 echo -e "${GREEN}🎉 Puedes iniciar todos los servicios con:${NC} make start"
-=======
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-echo -e "${GREEN}Inicializando la base de datos...${NC}"
-
-# Cambiar al directorio del backend
-cd apps/backend || exit
-
-# Verificar si poetry está instalado
-if ! command -v poetry &> /dev/null; then
-    echo -e "${RED}Poetry no está instalado. Por favor, instálalo primero.${NC}"
-    echo "Puedes instalarlo con: curl -sSL https://install.python-poetry.org | python3 -"
-    exit 1
-fi
-
-# Instalar dependencias
-echo -e "${GREEN}Instalando dependencias...${NC}"
-poetry install
-
-# Ejecutar las migraciones
-echo -e "${GREEN}Aplicando migraciones...${NC}"
-poetry run alembic upgrade head
-
-echo -e "${GREEN}¡Base de datos inicializada correctamente!${NC}"
