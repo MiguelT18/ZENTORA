@@ -1,27 +1,41 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.v1 import router as v1_router
+import logging
+import sys
 
-app = FastAPI(
-    title="ZENTORA API",
-    description="Backend API for ZENTORA project",
-    version="0.1.0",
+# Configuración global del logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
+from app.api.v1.api import api_router
+from app.core.config.config import settings
+from app.core.utils.scheduler import init_scheduler
+
+app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION, openapi_url=f"{settings.API_V1_STR}/openapi.json")
+
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Incluir el router de v1 directamente
-app.include_router(v1_router)
+# Incluir rutas de la API
+app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Inicializar el scheduler
+init_scheduler(app)
+
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
 
 @app.get("/")
 async def root():

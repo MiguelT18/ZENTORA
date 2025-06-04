@@ -1,9 +1,8 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, EmailStr
-
-from app.db.models.user import UserRole
+from pydantic import BaseModel, EmailStr, Field
+from app.core.utils.enums import UserRole, UserStatus, AuthProvider
 
 
 class UserBase(BaseModel):
@@ -12,10 +11,19 @@ class UserBase(BaseModel):
     role: UserRole = UserRole.USER
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
+    status: UserStatus = UserStatus.ACTIVE
+    provider: AuthProvider = AuthProvider.LOCAL
+    provider_id: Optional[str] = None
+    last_login_at: Optional[datetime] = None
 
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
+    email: EmailStr
     password: str
+    full_name: str
+    role: UserRole = UserRole.USER
+    bio: str | None = None
+    avatar_url: str | None = None
 
 
 class UserUpdate(UserBase):
@@ -39,3 +47,78 @@ class User(UserInDBBase):
 
 class UserInDB(UserInDBBase):
     password: str
+
+
+class EmailRequest(BaseModel):
+    email: EmailStr
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetVerify(BaseModel):
+    token: str
+    new_password: str
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class DeleteAccount(BaseModel):
+    current_password: str = Field(..., min_length=8, description="Contraseña actual del usuario")
+
+
+class RevokeAllSessions(BaseModel):
+    current_password: str = Field(
+        ..., min_length=8, description="Contraseña actual del usuario para verificar la identidad"
+    )
+
+
+class ActiveSession(BaseModel):
+    user_id: UUID
+    email: str
+    full_name: str
+    role: str
+    created_at: datetime
+    status: UserStatus
+
+
+class ActiveSessionsList(BaseModel):
+    total: int
+    sessions: list[ActiveSession]
+
+
+class SocialLoginRequest(BaseModel):
+    provider: AuthProvider
+    access_token: str
+
+
+class SocialProfile(BaseModel):
+    provider_id: str
+    email: EmailStr
+    full_name: str | None = None
+    avatar_url: str | None = None
+    provider: AuthProvider
+
+
+class ReactivateAccount(BaseModel):
+    """Esquema para reactivar una cuenta eliminada."""
+
+    email: EmailStr
+    password: str = Field(..., min_length=8, description="Contraseña del usuario")
+
+
+class UserProfileUpdate(BaseModel):
+    """Esquema para actualizar el perfil del usuario."""
+
+    full_name: str | None = Field(None, min_length=1, max_length=100)
+    bio: str | None = Field(None, max_length=500)
+    avatar_url: str | None = Field(None, max_length=255)
