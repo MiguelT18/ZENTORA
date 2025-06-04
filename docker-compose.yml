@@ -37,11 +37,7 @@ services:
       - "8000"
     volumes:
       - ./apps/backend:/app
-    environment:
-      - ENVIRONMENT=development
-      - DEBUG=1
-      - DATABASE_URL=postgresql://zentora:zentora@postgres:5432/zentora_db
-      - REDIS_URL=redis://redis:6379/0
+      - ./apps/backend/.env:/app/.env
     depends_on:
       postgres:
         condition: service_healthy

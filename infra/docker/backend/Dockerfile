@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
 ENV POETRY_HOME=/opt/poetry
 ENV POETRY_VERSION=1.7.1
 ENV POETRY_VENV=/opt/poetry-venv
+ENV PYTHONPATH=/app
 
 # Instalar poetry en su propio virtualenv
 RUN python3 -m venv $POETRY_VENV \
@@ -30,8 +31,12 @@ COPY pyproject.toml poetry.lock* ./
 # Instalar dependencias
 RUN poetry install --no-root --with dev
 
-# Copiar el código
+# Copiar el código y el archivo .env
 COPY . .
+COPY .env .env
+
+# Verificar que el archivo .env existe
+RUN ls -la .env || echo ".env file not found"
 
 EXPOSE 8000
 
