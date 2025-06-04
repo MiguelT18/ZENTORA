@@ -33,6 +33,10 @@ ZENTORA/
 
 1. **Configuración Inicial**
    ```bash
+   # Este comando:
+   # - Instalará todas las dependencias del frontend y backend
+   # - Inicializará la base de datos automáticamente
+   # - Aplicará todas las migraciones necesarias
    make setup
    ```
 
@@ -70,13 +74,24 @@ ZENTORA/
    - Name: ZENTORA-REDIS
 
 ### Migraciones
+La base de datos se inicializa automáticamente cuando ejecutas `make setup`. Sin embargo, si necesitas gestionar las migraciones manualmente, puedes usar estos comandos:
+
 ```bash
 # Crear nueva migración
 cd apps/backend
 poetry run alembic revision --autogenerate -m "descripción"
 
-# Aplicar migraciones
+# Aplicar migraciones manualmente
 poetry run alembic upgrade head
+
+# Ver estado actual de las migraciones
+poetry run alembic current
+
+# Ver historial de migraciones
+poetry run alembic history
+
+# Inicializar la base de datos manualmente (si es necesario)
+./scripts/init_db.sh
 ```
 
 ## 💻 Desarrollo
