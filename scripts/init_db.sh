@@ -72,7 +72,26 @@ echo -e "${BLUE}🗄️ Inicializando la base de datos...${NC}"
 
 # Ejecutar las migraciones dentro de un contenedor temporal
 echo -e "${BLUE}📦 Aplicando migraciones...${NC}"
-docker compose run --rm backend poetry run alembic upgrade head
+
+# Intentar las migraciones con reintentos
+max_attempts=3
+attempt=1
+
+while [ $attempt -le $max_attempts ]; do
+    if docker compose run --rm backend bash -c "cd /app && poetry install && poetry run alembic upgrade head"; then
+        echo -e "${GREEN}✅ Migraciones aplicadas correctamente!${NC}"
+        break
+    else
+        echo -e "${RED}⚠️ Intento $attempt de $max_attempts falló${NC}"
+        if [ $attempt -eq $max_attempts ]; then
+            echo -e "${RED}❌ No se pudieron aplicar las migraciones después de $max_attempts intentos${NC}"
+            exit 1
+        fi
+        echo -e "${BLUE}🔄 Esperando antes de reintentar...${NC}"
+        sleep 5
+        attempt=$((attempt + 1))
+    fi
+done
 
 echo -e "${GREEN}✅ Configuración completada!${NC}"
 echo -e "${GREEN}🎉 Puedes iniciar todos los servicios con:${NC} make start"
