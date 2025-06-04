@@ -55,7 +55,7 @@
   },
   "[typescriptreact]": {
     "editor.tabSize": 2,
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   // TypeScript/JavaScript extension settings
   "typescript.preferences.importModuleSpecifier": "non-relative",
