@@ -26,6 +26,8 @@ fi
 # Backend
 echo -e "${BLUE}🔧 Instalando dependencias del Backend...${NC}"
 cd apps/backend && poetry install
+# Instalar psycopg2-binary explícitamente
+poetry add psycopg2-binary
 cd ../..
 
 # Crear archivo .env si no existe
@@ -70,15 +72,14 @@ wait_for_service() {
 wait_for_service postgres || exit 1
 wait_for_service redis || exit 1
 
-# Crear un archivo temporal con la configuración de Alembic
+# Crear y aplicar el archivo env.py de Alembic con conexión síncrona
 echo -e "${BLUE}📝 Configurando Alembic...${NC}"
-cat > apps/backend/alembic/env.py.tmp << EOL
-import asyncio
+cat > apps/backend/alembic/env.py << EOL
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection
+from alembic import context
 
 from app.core.config import settings
 from app.db.base import Base
@@ -92,7 +93,6 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def get_url():
-    """Get database URL."""
     return "postgresql://zentora:zentora@postgres:5432/zentora_db"
 
 def run_migrations_offline() -> None:
@@ -113,9 +113,11 @@ def do_run_migrations(connection: Connection) -> None:
         context.run_migrations()
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode using synchronous connection."""
     url = get_url()
-    connectable = create_engine(url)
+    connectable = create_engine(
+        url,
+        poolclass=pool.NullPool,
+    )
 
     with connectable.connect() as connection:
         do_run_migrations(connection)
@@ -125,9 +127,6 @@ if context.is_offline_mode():
 else:
     run_migrations_online()
 EOL
-
-# Reemplazar el archivo env.py original
-mv apps/backend/alembic/env.py.tmp apps/backend/alembic/env.py
 
 # Construir la imagen del backend
 echo -e "${BLUE}🏗️ Construyendo imagen del backend...${NC}"
