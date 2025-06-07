@@ -6,12 +6,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import axios from "axios";
 import { useNotification } from "@/context/NotificationContext";
+import { useRouter } from "next/navigation";
 
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { addNotification } = useNotification();
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
   const { register, handleSubmit, formState: { errors }, getValues } = useForm({
     defaultValues: {
       name: "",
@@ -34,6 +36,7 @@ export default function Register() {
 
       const response = await axios.post("/api/v1/auth/register", dataToSend);
       addNotification("success", response.data.message);
+      router.push("/user/register/verify-account");
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || "Ha ocurrido un error al crear la cuenta";
       addNotification("error", errorMessage);
