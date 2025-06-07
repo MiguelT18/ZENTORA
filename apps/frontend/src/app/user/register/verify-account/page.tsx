@@ -1,12 +1,19 @@
 "use client";
 
 import { GlobalIcons } from "@/assets/icons";
-import { useState, useRef, KeyboardEvent, ClipboardEvent, ChangeEvent } from "react";
+import { useState, useRef, KeyboardEvent, ClipboardEvent, ChangeEvent, useEffect } from "react";
 import Link from "next/link";
+import axios from "axios";
+import { useNotification } from "@/context/NotificationContext";
+import { useRouter } from "next/navigation";
 
 export default function VerifyAccountPage() {
+  const router = useRouter();
+  const { addNotification } = useNotification();
+
   const [code, setCode] = useState<string[]>(Array(6).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (index: number, value: string) => {
     if (value.length > 1) return;
@@ -47,6 +54,51 @@ export default function VerifyAccountPage() {
       inputRefs.current[lastFilledIndex]?.focus();
     }
   };
+
+  const verifyCode = async () => {
+    setIsLoading(true);
+    const joinedCode = code.join("");
+
+    try {
+      const res = await axios.post(`/api/v1/auth/verify-email/${joinedCode}`);
+      console.log(res.data);
+      addNotification("success", res.data.message);
+      localStorage.setItem("token", res.data.access_token);
+      router.push("/");
+    } catch (error: any) {
+      addNotification("error", error.response.data.detail || "Ha ocurrido un error al verificar el código");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resendCode = async () => {
+    setIsLoading(true);
+    try {
+      const email = localStorage.getItem("email");
+      if (!email) {
+        addNotification("error", "No se encontró el correo electrónico");
+        return;
+      }
+
+      const res = await axios.post("/api/v1/auth/resend-verification", {
+        email,
+      });
+      addNotification("success", res.data.message);
+    } catch (error: any) {
+      addNotification("error", error.response.data.detail || "Ha ocurrido un error al reenviar el código");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const isComplete = code.every(digit => digit !== "");
+
+    if (isComplete) {
+      verifyCode();
+    }
+  }, [code]);
 
   return (
     <main className="flex flex-col items-center justify-center min-h-dvh max-sm:px-4">
@@ -90,9 +142,9 @@ export default function VerifyAccountPage() {
 
           <button
             className="w-full bg-primary hover:bg-primary/80 transition-colors text-white py-2 rounded-md mt-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={code.some(digit => !digit)}
+            disabled={code.some(digit => !digit) || isLoading}
           >
-            Verificar Código
+            {isLoading ? "Verificando..." : "Verificar Código"}
           </button>
         </section>
 
@@ -101,7 +153,7 @@ export default function VerifyAccountPage() {
             ¿No recibiste el código?
           </p>
 
-          <button className="bg-background dark:bg-background-dark transition-colors text-primary dark:text-primary-dark px-4 py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-fit flex items-center border border-border dark:border-border-dark hover:bg-primary/10 dark:hover:bg-primary-dark/10 ">
+          <button onClick={resendCode} className="bg-background dark:bg-background-dark transition-colors text-primary dark:text-primary-dark px-4 py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-fit flex items-center border border-border dark:border-border-dark hover:bg-primary/10 dark:hover:bg-primary-dark/10 ">
             <GlobalIcons.RestartIcon className="size-4 mr-2 text-primary dark:text-primary-dark" />
             Reenviar Código
           </button>

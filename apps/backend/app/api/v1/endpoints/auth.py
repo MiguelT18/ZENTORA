@@ -1137,7 +1137,7 @@ async def exchange_temp_code(
         # Devolver respuesta con tokens y datos del usuario actualizados
         return JSONResponse(
             content={
-                "message": "Inicio de sesión con GitHub exitoso",
+                "message": "Inicio de sesión exitoso",
                 "access_token": auth_data["jwt_access_token"],
                 "token_type": "bearer",
                 "user": {

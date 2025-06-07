@@ -13,7 +13,6 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { addNotification } = useNotification();
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
   const { register, handleSubmit, formState: { errors }, getValues } = useForm({
     defaultValues: {
       name: "",
@@ -25,6 +24,8 @@ export default function Register() {
     mode: "onChange",
   });
 
+  const router = useRouter();
+
   const onSubmit = async (data: any) => {
     try {
       setIsLoading(true);
@@ -33,6 +34,8 @@ export default function Register() {
         email: data.email,
         password: data.password,
       };
+
+      localStorage.setItem("email", data.email);
 
       const response = await axios.post("/api/v1/auth/register", dataToSend);
       addNotification("success", response.data.message);
@@ -43,6 +46,18 @@ export default function Register() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGithubLogin = () => {
+    axios.get("/api/v1/auth/github/login").then((res) => {
+      window.location.href = res.data.authorization_url;
+    });
+  };
+
+  const handleGoogleLogin = () => {
+    axios.get("/api/v1/auth/google/login").then((res) => {
+      window.location.href = res.data.authorization_url;
+    });
   };
 
   return (
@@ -209,13 +224,13 @@ export default function Register() {
           <p className="text-sm text-text-secondary dark:text-text-secondary-dark text-center">O regístrate con</p>
 
           <div className="flex gap-2 justify-center [&>button]:flex [&>button]:items-center [&>button]:gap-2 [&>button]:bg-background [&>button]:border [&>button]:border-surface [&>button]:dark:bg-background-dark [&>button]:dark:border-surface-dark [&>button]:text-text-primary [&>button]:dark:text-text-primary-dark [&>button]:px-4 [&>button]:py-2 [&>button]:rounded-md [&>button]:mt-2 [&>button]:cursor-pointer">
-            <button type="button" className="hover:bg-surface/80 dark:hover:bg-background-dark/50 transition-colors">
+            <button onClick={handleGithubLogin} type="button" className="hover:bg-surface/80 dark:hover:bg-background-dark/50 transition-colors">
               <AuthIcons.GithubIcon className="size-5" />
-              GitHub
+              {isLoading ? "Cargando..." : "GitHub"}
             </button>
-            <button type="button" className="hover:bg-surface/80 dark:hover:bg-background-dark/50 transition-colors">
+            <button onClick={handleGoogleLogin} type="button" className="hover:bg-surface/80 dark:hover:bg-background-dark/50 transition-colors">
               <AuthIcons.GoogleIcon className="size-5" />
-              Google
+              {isLoading ? "Cargando..." : "Google"}
             </button>
           </div>
 

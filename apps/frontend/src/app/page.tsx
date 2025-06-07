@@ -1,6 +1,34 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { useNotification } from "@/context/NotificationContext";
+import axios from "axios";
 
 export default function Home() {
+  const { addNotification } = useNotification();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const tempCode = searchParams.get("temp_code");
+
+    if (tempCode) {
+      const exchangeTempCode = async () => {
+        try {
+          const res = await axios.post("/api/v1/auth/exchange-temp-code", {
+            temp_code: tempCode,
+          });
+          console.log(res.data);
+          addNotification("success", res.data.message);
+          localStorage.setItem("token", res.data.access_token);
+        } catch (error: any) {
+          addNotification("error", error.response.data.detail || "Ha ocurrido un error al iniciar sesión");
+        }
+      };
+      exchangeTempCode();
+    }
+  }, []);
+
   return (
     <div className="flex flex-col items-center justify-center h-screen text-center">
       <h1 className="text-4xl font-bold">Sistema de Autenticación</h1>
