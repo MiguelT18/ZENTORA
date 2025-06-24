@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ThemeButton } from "@/components/ThemeButton";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { NotificationContainer } from "@/components/Notification/NotificationContainer";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -17,13 +17,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className="antialiased bg-background text-text-primary dark:bg-background-dark dark:text-text-primary-dark">
+      <body className="antialiased bg-light-bg text-text-primary dark:bg-dark-bg dark:text-dark-text-primary">
         <NotificationProvider>
-          <ThemeProvider>
-            <ThemeButton />
-            <NotificationContainer />
-            {children}
-          </ThemeProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <NotificationContainer />
+              {children}
+            </ThemeProvider>
+          </AuthProvider>
         </NotificationProvider>
       </body>
     </html>

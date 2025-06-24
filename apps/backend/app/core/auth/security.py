@@ -9,8 +9,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Configuración JWT
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -26,7 +24,7 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict[str, Any]) -> str:
     """Crea un token JWT de acceso."""
     to_encode = data.copy()
-    expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(seconds=settings.ACCESS_TOKEN_EXPIRE_SECONDS)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
@@ -35,7 +33,7 @@ def create_access_token(data: dict[str, Any]) -> str:
 def create_refresh_token(data: dict[str, Any]) -> str:
     """Crea un token JWT de refresco."""
     to_encode = data.copy()
-    expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(UTC) + timedelta(seconds=settings.REFRESH_TOKEN_EXPIRE_SECONDS)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt

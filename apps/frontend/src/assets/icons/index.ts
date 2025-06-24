@@ -10,6 +10,7 @@ import EyeOffIcon from "@/assets/icons/auth/EyeOffIcon";
 import AnimatedEmailIcon from "@/assets/icons/global/AnimatedEmailIcon";
 import RestartIcon from "@/assets/icons/global/RestartIcon";
 import ArrowIcon from "@/assets/icons/global/ArrowIcon";
+import HomeIcon from "@/assets/icons/global/HomeIcon";
 
 export const ThemeIcons = {
   SunIcon,
@@ -30,4 +31,5 @@ export const GlobalIcons = {
   AnimatedEmailIcon,
   RestartIcon,
   ArrowIcon,
+  HomeIcon,
 };

@@ -155,7 +155,12 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
 
 
 @router.post("/verify-email/{token}")
-async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)):
+async def verify_email(
+    token: str,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
     email = await verify_email_token(redis, token)
 
     if not email:
@@ -186,6 +191,24 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
     access_token = create_access_token(access_token_data)
     refresh_token = create_refresh_token(refresh_token_data)
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+    )
+
     # Almacenar información del refresh token en Redis
     user_refresh_data = {
         "refresh_token": refresh_token,
@@ -199,13 +222,12 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
 
     redis_key = f"refresh_token:{user.id}"
     await redis.hset(redis_key, mapping=user_refresh_data)
-    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
+    await redis.expire(redis_key, settings.REFRESH_TOKEN_EXPIRE_SECONDS)
 
-    return JSONResponse(
-        content={
-            "message": "Email verificado exitosamente",
+    response_data = {
+        "message": "Email verificado exitosamente",
             "access_token": access_token,
-            "token_type": "bearer",
+            "type": "access",
             "user": {
                 "id": str(user.id),
                 "email": user.email,
@@ -214,8 +236,12 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
                 "is_verified": user.is_verified,
                 "status": user.status,
             },
-        },
+    }
+
+    return JSONResponse(
+        content=response_data,
         status_code=200,
+        headers=dict(response.headers)
     )
 
 
@@ -304,6 +330,24 @@ async def login(
     access_token = create_access_token(access_token_data)
     refresh_token = create_refresh_token(refresh_token_data)
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+    )
+
     # Crear hash con información del usuario y refresh token
     user_refresh_data = {
         "refresh_token": refresh_token,
@@ -318,16 +362,16 @@ async def login(
     # Almacenar hash en Redis
     redis_key = f"refresh_token:{user.id}"
     await redis.hset(redis_key, mapping=user_refresh_data)
-    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
+    await redis.expire(redis_key, settings.REFRESH_TOKEN_EXPIRE_SECONDS)
 
     # Configurar cookie segura para el refresh token
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
         samesite="lax",
-        max_age=7 * 24 * 60 * 60,  # 7 días en segundos
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
         path="/auth/refresh",  # Solo accesible en el endpoint de refresh
     )
 
@@ -335,7 +379,7 @@ async def login(
         content={
             "message": "Inicio de sesión exitoso",
             "access_token": access_token,
-            "token_type": "bearer",
+            "type": "access",
             "user": {
                 "id": str(user.id),
                 "email": user.email,
@@ -389,7 +433,7 @@ async def logout(
 async def refresh_token(
     request: Request,
     response: Response,
-    token: str | None = None,
+    token: str = Depends(verify_token_not_blacklisted),
     redis: Redis = Depends(get_redis),
     db: AsyncSession = Depends(get_db),
 ):
@@ -464,16 +508,16 @@ async def refresh_token(
     # Almacenar nuevo hash en Redis
     await redis.delete(redis_key)  # Eliminar el hash anterior
     await redis.hset(redis_key, mapping=user_refresh_data)
-    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días en segundos
+    await redis.expire(redis_key, settings.REFRESH_TOKEN_EXPIRE_SECONDS)
 
     # Actualizar la cookie con el nuevo refresh token
     response.set_cookie(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
-        secure=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
         samesite="lax",
-        max_age=7 * 24 * 60 * 60,  # 7 días en segundos
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
         path="/auth/refresh",
     )
 
@@ -483,7 +527,7 @@ async def refresh_token(
     response_data = {
         "message": "Tokens renovados exitosamente",
         "access_token": new_access_token,
-        "token_type": "bearer",
+        "type": "access",
         "user": {
             "id": user_data["user_id"],
             "email": user_data["email"],
@@ -671,6 +715,39 @@ async def reset_password(
         logger.error(f"Error inesperado al restablecer la contraseña: {str(e)}")
         logger.exception("Stacktrace completo:")
         raise HTTPException(status_code=500, detail="Error inesperado al restablecer la contraseña")
+
+
+@router.post("/resend-password-verification")
+async def resend_reset_password(
+    reset_request: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Endpoint para reenviar el token de recuperación de contraseña."""
+    try:
+        # Verificar si el usuario existe
+        result = await db.execute(select(UserModel).where(UserModel.email == reset_request.email))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        # Generar token de recuperación
+        reset_token = await generate_password_reset_token(redis, reset_request.email)
+
+        # Enviar correo con el token
+        await send_password_reset_email(reset_request.email, reset_token, db)
+
+        return JSONResponse(
+            content={"message": "Se ha enviado un nuevo token de recuperación de contraseña"},
+            status_code=200,
+        )
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado en reenvío de token de recuperación de contraseña: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(status_code=500, detail="Error inesperado en reenvío de token de recuperación de contraseña")
 
 
 @router.patch("/change-password")
@@ -978,7 +1055,7 @@ async def reactivate_account(
             content={
                 "message": "Cuenta reactivada exitosamente",
                 "access_token": access_token,
-                "token_type": "bearer",
+                "type": "access",
                 "user": {
                     "id": str(user.id),
                     "email": user.email,
@@ -1139,7 +1216,7 @@ async def exchange_temp_code(
             content={
                 "message": "Inicio de sesión exitoso",
                 "access_token": auth_data["jwt_access_token"],
-                "token_type": "bearer",
+                "type": "access",
                 "user": {
                     "id": auth_data["user_id"],
                     "email": auth_data["email"],
@@ -1329,6 +1406,25 @@ async def github_callback(
 
             jwt_access_token = create_access_token(access_token_data)
             jwt_refresh_token = create_refresh_token(refresh_token_data)
+
+            # Configurar cookie del refresh token
+            response.set_cookie(
+                key="access_token",
+                value=jwt_access_token,
+                httponly=True,
+                secure=False if settings.ENVIRONMENT == "development" else True,
+                samesite="lax",
+                max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+            )
+
+            response.set_cookie(
+                key="refresh_token",
+                value=jwt_refresh_token,
+                httponly=True,
+                secure=False if settings.ENVIRONMENT == "development" else True,
+                samesite="lax",
+                max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+            )
 
             # Crear un objeto con los datos necesarios
             auth_data = {

@@ -4,18 +4,30 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --color-background: #ffffff;
-  --color-background-dark: #121212;
+  /* Dark Colors */
+  --color-dark-bg: #121212;
+  --color-dark-bg-secondary: #181818;
+  --color-dark-bg-surface: #1e1e1e;
 
-  --color-text-primary: #111111;
-  --color-text-primary-dark: #f5f5f5;
+  --color-dark-text-primary: #f5f5f5;
+  --color-dark-text-secondary: #aaaaaa;
+  --color-dark-text-disabled: #444444;
+  --color-dark-text-muted: #777777;
+  --color-dark-text-inverse: #ffffff;
 
-  --color-text-secondary: #666666;
-  --color-text-secondary-dark: #aaaaaa;
+  /* Light Colors */
+  --color-light-bg: #ffffff;
+  --color-light-bg-secondary: #f5f5f5;
+  --color-light-bg-surface: #e5e5e5;
 
-  --color-surface: #e5e5e5;
-  --color-surface-dark: #1e1e1e;
+  --color-light-text-primary: #111111;
+  --color-light-text-secondary: #666666;
+  --color-light-text-disabled: #cccccc;
+  --color-light-text-muted: #999999;
+  --color-light-text-inverse: #cccccc;
 
+
+  /* Accent Colors */
   --color-primary: #6366f1;
   --color-secondary: #14b8a6;
 
@@ -26,23 +38,24 @@
 }
 
 @theme inline {
-  --font-sans: "Lato", sans-serif;
+  --font-lato: "Lato", sans-serif;
   --font-roboto: "Roboto", sans-serif;
 }
 
 @theme {
-  --text-sm: clamp(0.875rem, 0.857rem + 0.089vw, 0.938rem);
-  --text-md: clamp(1rem, 0.952rem + 0.222vw, 1.125rem);
-  --text-lg: clamp(1.125rem, 1.056rem + 0.333vw, 1.375rem);
-  --text-xl: clamp(1.25rem, 1.161rem + 0.444vw, 1.625rem);
-  --text-2xl: clamp(1.5rem, 1.389rem + 0.556vw, 2rem);
-  --text-3xl: clamp(1.75rem, 1.611rem + 0.667vw, 2.5rem);
-  --text-4xl: clamp(2rem, 1.833rem + 0.833vw, 3rem);
-  --text-5xl: clamp(2.5rem, 2.292rem + 1.042vw, 3.5rem);
+  --text-xs: clamp(0.75rem, 0.7rem + 0.1vw, 0.85rem);
+  --text-sm: clamp(0.85rem, 0.8rem + 0.12vw, 1rem);
+  --text-md: clamp(1rem, 0.95rem + 0.14vw, 1.15rem);
+  --text-lg: clamp(1.15rem, 1.1rem + 0.15vw, 1.35rem);
+  --text-xl: clamp(1.3rem, 1.25rem + 0.18vw, 1.6rem);
+  --text-2xl: clamp(1.5rem, 1.4rem + 0.2vw, 1.9rem);
+  --text-3xl: clamp(1.8rem, 1.6rem + 0.24vw, 2.3rem);
+  --text-4xl: clamp(2.1rem, 1.9rem + 0.28vw, 2.7rem);
+  --text-5xl: clamp(2.5rem, 2.2rem + 0.32vw, 3.2rem);
 }
 
 body {
-  font-family: "Lato", sans-serif;
+  font-family: "Roboto", sans-serif;
 }
 
 /* Estilos para controlar el autocompletado */
@@ -50,8 +63,8 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px var(--color-background) inset !important;
-  -webkit-text-fill-color: var(--color-text-primary) !important;
+  -webkit-box-shadow: 0 0 0 30px var(--color-light-bg) inset !important;
+  -webkit-text-fill-color: var(--color-light-text-primary) !important;
 }
 
 /* Estilos para modo oscuro */
@@ -59,6 +72,6 @@ input:-webkit-autofill:active {
 .dark input:-webkit-autofill:hover,
 .dark input:-webkit-autofill:focus,
 .dark input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px var(--color-background-dark) inset !important;
-  -webkit-text-fill-color: var(--color-text-primary-dark) !important;
+  -webkit-box-shadow: 0 0 0 30px var(--color-dark-bg) inset !important;
+  -webkit-text-fill-color: var(--color-dark-text-primary) !important;
 }
