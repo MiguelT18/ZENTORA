@@ -206,6 +206,8 @@ async def verify_email(
         path="/",
     )
 
+    response.set_cookie(key="is_logged_in", value="true", max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS, path="/")
+
     # Almacenar información del refresh token en Redis
     user_refresh_data = {
         "refresh_token": refresh_token,
@@ -336,6 +338,8 @@ async def login(
         path="/",
     )
 
+    response.set_cookie(key="is_logged_in", value="true", max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS, path="/")
+
     # Crear hash con información del usuario y refresh token
     user_refresh_data = {
         "refresh_token": refresh_token,
@@ -403,6 +407,7 @@ async def logout(
 
     # Eliminar la cookie del refresh token
     response.delete_cookie(key="refresh_token", path="/auth/refresh", secure=True, httponly=True)
+    response.delete_cookie(key="is_logged_in", path="/")
 
     return {"message": "Sesión cerrada exitosamente"}
 
@@ -509,6 +514,8 @@ async def refresh_token(
         max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
         path="/",
     )
+
+    response.set_cookie(key="is_logged_in", value="true", max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS, path="/")
 
     # Añadir el token anterior a la lista negra
     await redis.set(f"blacklisted_token:{token_to_use}", "true", ex=3600)
@@ -711,6 +718,7 @@ async def resend_reset_password(
 
 @router.patch("/change-password", status_code=200)
 async def change_password(
+    response: Response,
     password_data: PasswordChange,
     token: str = Depends(verify_token_not_blacklisted),
     db: AsyncSession = Depends(get_db),
@@ -767,6 +775,8 @@ async def change_password(
         # Añadir el token actual a la lista negra
         await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
 
+        response.delete_cookie(key="is_logged_in", path="/")
+
         return {
             "message": "Contraseña actualizada exitosamente. Por favor, inicia sesión nuevamente con tu nueva contraseña."
         }
@@ -781,6 +791,7 @@ async def change_password(
 
 @router.delete("/delete-account", status_code=200)
 async def delete_account(
+    response: Response,
     delete_data: DeleteAccount,
     token: str = Depends(verify_token_not_blacklisted),
     db: AsyncSession = Depends(get_db),
@@ -821,6 +832,8 @@ async def delete_account(
         # Añadir el token actual a la lista negra
         await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
 
+        response.delete_cookie(key="is_logged_in", path="/")
+
         return {"message": "Cuenta eliminada exitosamente"}
 
     except HTTPException as http_error:
@@ -833,6 +846,7 @@ async def delete_account(
 
 @router.delete("/revoke", status_code=200)
 async def revoke_all_sessions(
+    response: Response,
     revoke_data: RevokeAllSessions,
     token: str = Depends(verify_token_not_blacklisted),
     db: AsyncSession = Depends(get_db),
@@ -872,6 +886,8 @@ async def revoke_all_sessions(
 
         # Añadir el token actual a la lista negra
         await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
+
+        response.delete_cookie(key="is_logged_in", path="/")
 
         return {"message": "Todas las sesiones han sido revocadas exitosamente. Por favor, inicia sesión nuevamente."}
 
@@ -948,6 +964,7 @@ async def list_active_sessions(
 
 @router.post("/reactivate")
 async def reactivate_account(
+    response: Response,
     reactivate_data: ReactivateAccount,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
@@ -999,10 +1016,10 @@ async def reactivate_account(
         await redis.hset(redis_key, mapping=user_refresh_data)
         await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
 
+        response.set_cookie(key="is_logged_in", value="true", max_age=7 * 24 * 60 * 60, path="/")
+
         return {
             "message": "Cuenta reactivada exitosamente",
-            "access_token": access_token,
-            "type": "access",
             "user": {
                 "id": str(user.id),
                 "email": user.email,
@@ -1153,11 +1170,11 @@ async def exchange_temp_code(
             path="/auth/refresh",
         )
 
+        response.set_cookie(key="is_logged_in", value="true", max_age=7 * 24 * 60 * 60, path="/")
+
         # Devolver respuesta con tokens y datos del usuario actualizados
         return {
             "message": "Inicio de sesión exitoso",
-            "access_token": auth_data["jwt_access_token"],
-            "type": "access",
             "user": {
                 "id": auth_data["user_id"],
                 "email": auth_data["email"],
@@ -1366,6 +1383,12 @@ async def github_callback(
             redirect_url = f"{frontend_url}?temp_code={temp_code}"
 
             redirect_response = RedirectResponse(url=redirect_url, status_code=303)
+            redirect_response.set_cookie(
+                key="is_logged_in",
+                value="true",
+                max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+                path="/",
+            )
             redirect_response.set_cookie(
                 key="access_token",
                 value=jwt_access_token,
@@ -1632,6 +1655,12 @@ async def google_callback(
             redirect_url = f"{frontend_url}?temp_code={temp_code}"
 
             redirect_response = RedirectResponse(url=redirect_url, status_code=303)
+            redirect_response.set_cookie(
+                key="is_logged_in",
+                value="true",
+                max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+                path="/",
+            )
             redirect_response.set_cookie(
                 key="access_token",
                 value=jwt_access_token,

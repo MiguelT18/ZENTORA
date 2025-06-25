@@ -17,6 +17,7 @@ import axios, { AxiosError } from "axios";
 import { useNotification } from "@/context/NotificationContext";
 import { UserControls } from "@/components/UserControls";
 import ModalNotification from "@/components/Notification/ModalNotification";
+import { PublicRoute } from "@/components/PublicRoute";
 
 import type { ModalNotification as ModalNotificationType, User as UserType } from "@/utils/types";
 
@@ -28,7 +29,7 @@ interface RegisterFormData {
   confirmPassword: string;
 }
 
-export default function Register() {
+export default function RegisterPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
@@ -128,7 +129,7 @@ export default function Register() {
 
       if (res.status === 201) {
         localStorage.setItem("email", data.email);
-        setModalNotification({ message: res.data.message, type: "info" });
+        setModalNotification({ message: res.data.message, type: "success" });
         setUser(res.data.user);
         verifyAccountModal.showModal();
       }
@@ -160,6 +161,7 @@ export default function Register() {
           type: "success",
         });
         addNotification("success", res.data.message);
+        localStorage.removeItem("email");
         verifyAccountModal.close();
         router.push("/");
       }
@@ -223,7 +225,7 @@ export default function Register() {
   }, [shouldVerify, verifyCode]);
 
   return (
-    <>
+    <PublicRoute>
       <dialog
         id="verify-account-modal"
         className="w-full max-w-md m-auto bg-light-bg-secondary dark:bg-dark-bg-surface p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
@@ -553,6 +555,6 @@ export default function Register() {
           </footer>
         </article>
       </main>
-    </>
+    </PublicRoute>
   );
 }

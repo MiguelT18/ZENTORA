@@ -8,13 +8,14 @@ import axios, { AxiosError } from "axios";
 import { useNotification } from "@/context/NotificationContext";
 import { useRouter } from "next/navigation";
 import { UserControls } from "@/components/UserControls";
+import { PublicRoute } from "@/components/PublicRoute";
 
 interface LoginFormData {
   email: string;
   password: string;
 }
 
-export default function Login() {
+export default function LoginPage() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
   const [showNewPasswordRepeat, setShowNewPasswordRepeat] = useState<boolean>(false);
@@ -66,7 +67,6 @@ export default function Login() {
     try {
       const response = await axios.post("/api/v1/auth/login", data);
       addNotification("success", response.data.message);
-      localStorage.setItem("token", response.data.access_token);
       router.push("/");
     } catch (e: unknown) {
       const error = e as AxiosError<{ detail: string }>;
@@ -233,7 +233,7 @@ export default function Login() {
   }, [code]);
 
   return (
-    <>
+    <PublicRoute>
       <UserControls />
       <main className="flex flex-col items-center justify-center min-h-dvh max-sm:px-4">
         <dialog
@@ -587,6 +587,6 @@ export default function Login() {
           </footer>
         </article>
       </main>
-    </>
+    </PublicRoute>
   );
 }
