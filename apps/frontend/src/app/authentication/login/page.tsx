@@ -239,7 +239,7 @@ export default function Login() {
         <dialog
           closedby="any"
           id="forgot-password-modal"
-          className="w-full overflow-hidden max-w-md fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-light-bg-secondary dark:bg-dark-bg-secondary p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
+          className="w-full m-auto overflow-hidden max-w-md bg-light-bg-secondary dark:bg-dark-bg-secondary p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
         >
           <header className="mb-4 text-center space-y-1">
             <h1 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary text-balance">
@@ -304,7 +304,7 @@ export default function Login() {
 
         <dialog
           id="reset-password-modal"
-          className="w-full max-w-md fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-light-bg-secondary dark:bg-dark-bg-surface p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
+          className="w-full max-w-md m-auto bg-light-bg-secondary dark:bg-dark-bg-surface p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
         >
           <div className="text-center mb-2">
             <span className="block size-fit rounded-full bg-secondary/10 dark:bg-secondary-dark/10 p-3 mx-auto">

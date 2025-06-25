@@ -127,6 +127,7 @@ export default function Register() {
       });
 
       if (res.status === 201) {
+        localStorage.setItem("email", data.email);
         setModalNotification({ message: res.data.message, type: "info" });
         setUser(res.data.user);
         verifyAccountModal.showModal();
@@ -179,14 +180,23 @@ export default function Register() {
     try {
       const email = localStorage.getItem("email");
       if (!email) {
-        addNotification("error", "No se encontró el correo electrónico");
+        setModalNotification({
+          type: "error",
+          message: "No se encontró el correo electrónico",
+        });
         return;
       }
 
       const res = await axios.post("/api/v1/auth/resend-verification", {
         email,
       });
-      addNotification("success", res.data.message);
+
+      if (res.status === 200) {
+        setModalNotification({
+          type: "success",
+          message: res.data.message,
+        });
+      }
     } catch (e) {
       const error = e as AxiosError<{ detail: string }>;
       setModalNotification({
@@ -195,6 +205,7 @@ export default function Register() {
       });
     } finally {
       setLoading(false);
+      setTimeout(() => setModalNotification(null), 5000);
     }
   };
 
@@ -215,7 +226,7 @@ export default function Register() {
     <>
       <dialog
         id="verify-account-modal"
-        className="w-full max-w-md fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-light-bg-secondary dark:bg-dark-bg-surface p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
+        className="w-full max-w-md m-auto bg-light-bg-secondary dark:bg-dark-bg-surface p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
       >
         <header>
           <span className="block size-fit rounded-full bg-secondary/10 dark:bg-secondary-dark/10 p-3 mx-auto mb-2">
