@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AuthIcons, GlobalIcons } from "@/assets/icons";
 import {
   useRef,
@@ -41,8 +40,6 @@ export default function RegisterPage() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const { addNotification } = useNotification();
-
-  const router = useRouter();
 
   const {
     register,
@@ -163,7 +160,7 @@ export default function RegisterPage() {
         addNotification("success", res.data.message);
         localStorage.removeItem("email");
         verifyAccountModal.close();
-        router.push("/");
+        window.location.replace("/");
       }
     } catch (e) {
       const error = e as AxiosError<{ detail: string }>;
@@ -175,7 +172,7 @@ export default function RegisterPage() {
       setTimeout(() => setModalNotification(null), 5000);
       setLoading(false);
     }
-  }, [code, addNotification, router]);
+  }, [code, addNotification]);
 
   const resendCode = async () => {
     setLoading(true);
@@ -241,7 +238,10 @@ export default function RegisterPage() {
           <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary text-center">
             Hemos enviado un código de 6 dígitos a
             <span className="text-light-text-secondary dark:text-dark-text-secondary text-sm font-bold block">
-              correo@ejemplo.com
+              {user?.email ||
+                (typeof window !== "undefined"
+                  ? localStorage.getItem("email")
+                  : "correo@ejemplo.com")}
             </span>
           </p>
         </header>

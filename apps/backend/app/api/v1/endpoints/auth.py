@@ -53,6 +53,7 @@ import httpx
 from app.core.config.config import settings
 from secrets import token_urlsafe
 from pydantic import BaseModel
+from urllib.parse import urlencode
 
 router = APIRouter(prefix="/auth")
 
@@ -405,9 +406,10 @@ async def logout(
     # Añadir el token actual a la lista negra
     await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
 
-    # Eliminar la cookie del refresh token
-    response.delete_cookie(key="refresh_token", path="/auth/refresh", secure=True, httponly=True)
-    response.delete_cookie(key="is_logged_in", path="/")
+    # Eliminar cookies relacionadas con la sesión
+    response.delete_cookie(key="refresh_token", secure=True, httponly=True)
+    response.delete_cookie(key="access_token", secure=True, httponly=True)
+    response.delete_cookie(key="is_logged_in")
 
     return {"message": "Sesión cerrada exitosamente"}
 
@@ -1327,29 +1329,11 @@ async def github_callback(
             else:
                 # Verificar si el usuario ya está registrado con otro proveedor social
                 if user.provider != social_login_data.provider:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método.",
-                    )
-
-                # Actualizar información del usuario si es necesario
-                update_data = {
-                    "last_login_at": datetime.now(UTC),
-                    "status": UserStatus.INACTIVE,  # Establecer como inactivo hasta completar el exchange
-                }
-
-                if social_profile.avatar_url and not user.avatar_url:
-                    update_data["avatar_url"] = social_profile.avatar_url
-                if social_profile.full_name and not user.full_name:
-                    update_data["full_name"] = social_profile.full_name
-                if not user.provider_id:
-                    update_data["provider_id"] = social_profile.provider_id
-
-                await db.execute(
-                    update(UserModel).where(UserModel.id == user.id).values(**update_data, updated_at=datetime.now(UTC))
-                )
-                await db.commit()
-                await db.refresh(user)
+                    error_message = f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método."
+                    params = urlencode({"error": error_message})
+                    frontend_url = "http://localhost/"
+                    redirect_url = f"{frontend_url}?{params}"
+                    return RedirectResponse(url=redirect_url, status_code=303)
 
             # Crear tokens JWT para la sesión
             access_token_data = {
@@ -1599,10 +1583,11 @@ async def google_callback(
             else:
                 # Verificar si el usuario ya está registrado con otro proveedor social
                 if user.provider != social_login_data.provider:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método.",
-                    )
+                    error_message = f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método."
+                    params = urlencode({"error": error_message})
+                    frontend_url = "http://localhost/"
+                    redirect_url = f"{frontend_url}?{params}"
+                    return RedirectResponse(url=redirect_url, status_code=303)
 
                 # Actualizar información del usuario si es necesario
                 update_data = {

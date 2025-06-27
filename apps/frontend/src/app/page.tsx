@@ -14,6 +14,14 @@ export default function Home() {
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const tempCode = searchParams.get("temp_code");
+    const errorParam = searchParams.get("error");
+
+    if (errorParam) {
+      addNotification("error", errorParam);
+      searchParams.delete("error");
+      const newUrl = window.location.pathname + (searchParams.toString() ? `?${searchParams}` : "");
+      window.history.replaceState({}, document.title, newUrl);
+    }
 
     if (tempCode && !isProcessing.current) {
       isProcessing.current = true;
