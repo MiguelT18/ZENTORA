@@ -4,11 +4,12 @@ import Link from "next/link";
 import { AuthIcons, GlobalIcons } from "@/assets/icons";
 import { ChangeEvent, ClipboardEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import { useNotification } from "@/context/NotificationContext";
-import { useRouter } from "next/navigation";
 import { UserControls } from "@/components/UserControls";
 import { PublicRoute } from "@/components/PublicRoute";
+import ModalNotification from "@/components/Notification/ModalNotification";
+import type { ModalNotification as ModalNotificationType } from "@/utils/types";
 
 interface LoginFormData {
   email: string;
@@ -22,11 +23,12 @@ export default function LoginPage() {
   const [canResetPassword, setCanResetPassword] = useState<boolean>(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [code, setCode] = useState<string[]>(Array(6).fill(""));
-  const [isCodeSent, setIsCodeSent] = useState<boolean>(false);
+  const [loading, setLoading] = useState<
+    null | "login" | "sendCode" | "resetPassword" | "resendCode"
+  >(null);
+  const [modalNotification, setModalNotification] = useState<ModalNotificationType | null>(null);
 
   const { addNotification } = useNotification();
-
-  const router = useRouter();
 
   const {
     register,
@@ -65,15 +67,21 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      const response = await axios.post("/api/v1/auth/login", data);
-      addNotification("success", response.data.message);
-      router.push("/");
+      setLoading("login");
+      const res = await axios.post("/api/v1/auth/login", data);
+      localStorage.setItem("success_login_message", res.data.message);
+      window.location.replace("/");
     } catch (e: unknown) {
-      const error = e as AxiosError<{ detail: string }>;
-      addNotification(
-        "error",
-        error.response?.data?.detail || "Ha ocurrido un error al iniciar sesión"
-      );
+      if (axios.isAxiosError(e)) {
+        addNotification(
+          "error",
+          e.response?.data?.detail || "Ha ocurrido un error al iniciar sesión"
+        );
+      } else {
+        addNotification("error", "Ha ocurrido un error al iniciar sesión");
+      }
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -98,68 +106,102 @@ export default function LoginPage() {
   };
 
   const handleForgotPassword = async (data: { "email-modal": string }) => {
-    const resetPasswordModal = document.getElementById("reset-password-modal") as HTMLDialogElement;
-    const emailModal = document.getElementById("forgot-password-modal") as HTMLDialogElement;
-
-    // const dataToSend = {
-    //   email: data["email-modal"],
-    // };
-
-    setIsCodeSent(true);
-
-    setTimeout(() => {
-      setIsCodeSent(false);
+    try {
+      setLoading("sendCode");
+      const res = await axios.post("/api/v1/auth/forgot-password", {
+        email: data["email-modal"],
+      });
       setCanResetPassword(true);
-      emailModal?.close();
-      resetPasswordModal?.showModal();
-    }, 2000);
+      (document.getElementById("forgot-password-modal") as HTMLDialogElement | null)?.close();
+      (document.getElementById("reset-password-modal") as HTMLDialogElement | null)?.showModal();
+      setModalNotification({ message: res.data?.message, type: "info" });
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        setModalNotification({
+          message:
+            e.response?.data?.detail ||
+            "Hubo un error al enviar el código de recuperación. Por favor, intenta nuevamente.",
+          type: "error",
+        });
+      } else {
+        setModalNotification({
+          message: "Hubo un error al enviar el código de recuperación.",
+          type: "error",
+        });
+      }
+      (document.getElementById("forgot-password-modal") as HTMLDialogElement | null)?.close();
+      resetModal();
+    } finally {
+      setLoading(null);
+      setTimeout(() => setModalNotification(null), 5000);
+    }
+  };
 
-    // try {
-    //   const response = await axios.post("http://localhost/api/v1/auth/forgot-password", {
-    //     "email": dataToSend.email
-    //   });
-
-    //   setIsCodeSent(false);
-    //   setCanResetPassword(true);
-    //   emailModal?.close();
-    //   resetPasswordModal?.showModal();
-    // } catch (error: any) {
-    //   addNotification("error", error.response.data.detail || "Hubo un error al enviar el código de recuperación. Por favor, intenta nuevamente.");
-    //   emailModal?.close();
-    //   resetModal();
-    // } finally {
-    //   setIsCodeSent(false);
-    // }
+  const handleResendCode = async () => {
+    setLoading("resendCode");
+    try {
+      const email = (document.getElementById("email-modal") as HTMLInputElement | null)?.value;
+      if (!email) {
+        setModalNotification({ message: "No se encontró el correo electrónico", type: "error" });
+        return;
+      }
+      const res = await axios.post("/api/v1/auth/forgot-password", { email });
+      setModalNotification({ message: res.data?.message, type: "success" });
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        setModalNotification({
+          message:
+            e.response?.data?.detail ||
+            "Hubo un error al reenviar el código. Por favor, intenta nuevamente.",
+          type: "error",
+        });
+      } else {
+        setModalNotification({
+          message: "Hubo un error al reenviar el código.",
+          type: "error",
+        });
+      }
+    } finally {
+      setLoading(null);
+      setTimeout(() => setModalNotification(null), 5000);
+    }
   };
 
   const handleResetPassword = async (data: {
     "new-password": string;
     "new-password-repeat": string;
   }) => {
-    const modal = document.getElementById("reset-password-modal") as HTMLDialogElement;
-    // const dataToSend = {
-    //   token: code.join(""),
-    //   new_password: data["new-password"],
-    // };
-
-    setCanResetPassword(true);
-
-    setTimeout(() => {
+    try {
+      setLoading("resetPassword");
+      const dataToSend = {
+        token: code.join(""),
+        new_password: data["new-password"],
+      };
+      const res = await axios.put("/api/v1/auth/reset-password", dataToSend);
       setCanResetPassword(false);
       setCode(Array(6).fill(""));
       resetModal();
       resetResetPassword();
-      modal?.close();
-    }, 2000);
-
-    // setTimeout(() => {
-    //   addNotification("success", "Contraseña restablecida correctamente.");
-    //   setCode(Array(6).fill(""));
-    //   resetModal();
-    //   resetResetPassword();
-    //   setCanResetPassword(false);
-    //   modal?.close();
-    // }, 2000);
+      (document.getElementById("reset-password-modal") as HTMLDialogElement | null)?.close();
+      addNotification("success", res.data?.message);
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        setModalNotification({
+          message:
+            e.response?.data?.detail ||
+            "Hubo un error al cambiar la contraseña. Por favor, intenta nuevamente.",
+          type: "error",
+        });
+      } else {
+        setModalNotification({
+          message: "Hubo un error al cambiar la contraseña.",
+          type: "error",
+        });
+      }
+    } finally {
+      setLoading(null);
+      setTimeout(() => setModalNotification(null), 5000);
+    }
   };
 
   const handleChange = (index: number, value: string) => {
@@ -225,7 +267,6 @@ export default function LoginPage() {
     const isComplete = code.every((digit) => digit !== "");
 
     if (isComplete) {
-      // handleResetPassword({ "code-modal": code.join(""), "email-modal": email || "" });
       setCanResetPassword(false);
     } else {
       setCanResetPassword(true);
@@ -282,7 +323,7 @@ export default function LoginPage() {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 mt-4">
+            <div className="flex flex-col sm:flex-row-reverse gap-2 mt-4">
               <button
                 type="button"
                 className="w-full border border-light-bg-surface dark:border-dark-text-secondary/25 hover:border-secondary hover:bg-secondary/10 hover:text-secondary transition-colors text-light-text-primary dark:text-dark-text-primary py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
@@ -294,9 +335,9 @@ export default function LoginPage() {
               <button
                 type="submit"
                 className="w-full bg-secondary hover:bg-secondary/80 transition-colors text-white py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                disabled={isCodeSent}
+                disabled={loading === "sendCode"}
               >
-                {isCodeSent ? "Enviando código..." : "Enviar código"}
+                {loading === "sendCode" ? "Enviando..." : "Enviar código"}
               </button>
             </div>
           </form>
@@ -306,7 +347,7 @@ export default function LoginPage() {
           id="reset-password-modal"
           className="w-full max-w-md m-auto bg-light-bg-secondary dark:bg-dark-bg-surface p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
         >
-          <div className="text-center mb-2">
+          <div className="text-center">
             <span className="block size-fit rounded-full bg-secondary/10 dark:bg-secondary-dark/10 p-3 mx-auto">
               <GlobalIcons.AnimatedEmailIcon className="size-8 text-secondary dark:text-primary-dark mx-auto" />
             </span>
@@ -321,7 +362,11 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmitResetPassword(handleResetPassword)}>
+          {modalNotification && (
+            <ModalNotification message={modalNotification.message} type={modalNotification.type} />
+          )}
+
+          <form onSubmit={handleSubmitResetPassword(handleResetPassword)} className="mt-4">
             <div className="flex justify-center gap-2">
               {Array(6)
                 .fill(null)
@@ -345,6 +390,16 @@ export default function LoginPage() {
                   />
                 ))}
             </div>
+
+            <button
+              type="button"
+              onClick={handleResendCode}
+              className="bg-background dark:bg-background-dark transition-colors text-secondary dark:text-primary-dark px-4 py-2 rounded-md my-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-fit flex items-center border border-border dark:border-border-dark hover:bg-secondary/10 dark:hover:bg-secondary-dark/10 mx-auto"
+              disabled={loading === "resendCode"}
+            >
+              <GlobalIcons.RestartIcon className="size-4 mr-2 text-secondary dark:text-primary-dark" />
+              {loading === "resendCode" ? "Reenviando..." : "Reenviar código"}
+            </button>
 
             <div className="mt-2">
               <div>
@@ -440,7 +495,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 mt-4">
+            <div className="flex flex-col sm:flex-row-reverse gap-2 mt-4">
               <button
                 type="button"
                 className="w-full border border-light-bg-surface dark:border-dark-text-secondary/25 hover:border-secondary hover:bg-secondary/10 hover:text-secondary transition-colors text-light-text-primary dark:text-dark-text-primary py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
@@ -450,11 +505,11 @@ export default function LoginPage() {
               </button>
 
               <button
-                disabled={canResetPassword}
+                disabled={canResetPassword || loading === "resetPassword"}
                 type="submit"
                 className="w-full bg-secondary hover:bg-secondary/80 transition-colors text-white py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
-                Cambiar contraseña
+                {loading === "resetPassword" ? "Cambiando..." : "Cambiar contraseña"}
               </button>
             </div>
           </form>
@@ -545,8 +600,9 @@ export default function LoginPage() {
               <button
                 type="submit"
                 className="w-full bg-primary hover:bg-primary/80 transition-colors text-white tracking-wider py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                disabled={loading === "login"}
               >
-                Iniciar Sesión
+                {loading === "login" ? "Iniciando..." : "Iniciar Sesión"}
               </button>
             </form>
           </section>
@@ -560,7 +616,7 @@ export default function LoginPage() {
               <button
                 onClick={handleGithubLogin}
                 type="button"
-                className="hover:bg-light-bg/30 dark:hover:bg-dark-bg/30 transition-colors"
+                className="hover:bg-light-bg/30 dark:hover:bg-dark-bg-surface/30 transition-colors"
               >
                 <AuthIcons.GithubIcon className="size-5" />
                 GitHub
@@ -568,7 +624,7 @@ export default function LoginPage() {
               <button
                 onClick={handleGoogleLogin}
                 type="button"
-                className="hover:bg-light-bg/30 dark:hover:bg-dark-bg/30 transition-colors"
+                className="hover:bg-light-bg/30 dark:hover:bg-dark-bg-surface/30 transition-colors"
               >
                 <AuthIcons.GoogleIcon className="size-5" />
                 Google

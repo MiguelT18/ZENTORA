@@ -11,7 +11,10 @@ export default function ModalNotification(props: ModalNotification) {
   };
 
   return (
-    <p className={`block w-full p-4 rounded-lg text-sm border-2 ${styles[type]}`}>
+    <p
+      className={`block w-full p-4 rounded-lg text-sm border-2 ${styles[type]} break-words whitespace-pre-line max-h-32 overflow-y-auto`}
+      style={{ wordBreak: "break-word" }}
+    >
       {message}
     </p>
   );

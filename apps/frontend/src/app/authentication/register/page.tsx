@@ -29,7 +29,7 @@ interface RegisterFormData {
 }
 
 export default function RegisterPage() {
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<null | "register" | "verify" | "resend">(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [shouldVerify, setShouldVerify] = useState<boolean>(false);
@@ -113,7 +113,7 @@ export default function RegisterPage() {
     const verifyAccountModal = document.getElementById("verify-account-modal") as HTMLDialogElement;
 
     try {
-      setLoading(true);
+      setLoading("register");
       const dataToSend = {
         full_name: `${data.name} ${data.lastname}`,
         email: data.email,
@@ -141,6 +141,7 @@ export default function RegisterPage() {
       setTimeout(() => {
         setModalNotification(null);
       }, 5000);
+      setLoading(null);
     }
   };
 
@@ -150,6 +151,7 @@ export default function RegisterPage() {
     const joinedCode = code.join("");
 
     try {
+      setLoading("verify");
       const res = await axios.post(`/api/v1/auth/verify-email/${joinedCode}`);
 
       if (res.status === 200) {
@@ -157,8 +159,8 @@ export default function RegisterPage() {
           message: res.data.message,
           type: "success",
         });
-        addNotification("success", res.data.message);
         localStorage.removeItem("email");
+        localStorage.setItem("success_login_message", res.data.message);
         verifyAccountModal.close();
         window.location.replace("/");
       }
@@ -170,12 +172,12 @@ export default function RegisterPage() {
       });
     } finally {
       setTimeout(() => setModalNotification(null), 5000);
-      setLoading(false);
+      setLoading(null);
     }
-  }, [code, addNotification]);
+  }, [code]);
 
   const resendCode = async () => {
-    setLoading(true);
+    setLoading("resend");
     try {
       const email = localStorage.getItem("email");
       if (!email) {
@@ -203,7 +205,7 @@ export default function RegisterPage() {
         type: "error",
       });
     } finally {
-      setLoading(false);
+      setLoading(null);
       setTimeout(() => setModalNotification(null), 5000);
     }
   };
@@ -282,9 +284,9 @@ export default function RegisterPage() {
           <button
             onClick={verifyCode}
             className="w-full bg-secondary hover:bg-secondary/80 transition-colors text-white py-2 rounded-md mt-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={code.some((digit) => !digit) || loading}
+            disabled={code.some((digit) => !digit) || loading === "verify"}
           >
-            {loading ? "Verificando..." : "Verificar Código"}
+            {loading === "verify" ? "Verificando..." : "Verificar Código"}
           </button>
         </section>
 
@@ -296,9 +298,10 @@ export default function RegisterPage() {
           <button
             onClick={resendCode}
             className="bg-background dark:bg-background-dark transition-colors text-secondary dark:text-primary-dark px-4 py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-fit flex items-center border border-border dark:border-border-dark hover:bg-secondary/10 dark:hover:bg-secondary-dark/10 "
+            disabled={loading === "resend"}
           >
             <GlobalIcons.RestartIcon className="size-4 mr-2 text-secondary dark:text-primary-dark" />
-            Reenviar Código
+            {loading === "resend" ? "Reenviando..." : "Reenviar Código"}
           </button>
 
           <Link
@@ -512,9 +515,9 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 className="w-full bg-primary hover:bg-primary/80 transition-colors text-white py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={loading}
+                disabled={loading === "register"}
               >
-                {loading ? "Creando..." : "Crear cuenta"}
+                {loading === "register" ? "Creando..." : "Crear cuenta"}
               </button>
             </form>
           </section>
@@ -528,7 +531,7 @@ export default function RegisterPage() {
               <button
                 onClick={handleGithubLogin}
                 type="button"
-                className="hover:bg-light-bg/30 dark:hover:bg-dark-bg/30 transition-colors"
+                className="hover:bg-light-bg/30 dark:hover:bg-dark-bg-surface/30 transition-colors"
               >
                 <AuthIcons.GithubIcon className="size-5" />
                 GitHub
@@ -536,7 +539,7 @@ export default function RegisterPage() {
               <button
                 onClick={handleGoogleLogin}
                 type="button"
-                className="hover:bg-light-bg/30 dark:hover:bg-dark-bg/30 transition-colors"
+                className="hover:bg-light-bg/30 dark:hover:bg-dark-bg-surface/30 transition-colors"
               >
                 <AuthIcons.GoogleIcon className="size-5" />
                 Google

@@ -16,6 +16,13 @@ export default function Home() {
     const tempCode = searchParams.get("temp_code");
     const errorParam = searchParams.get("error");
 
+    // Mostrar mensaje de éxito tras verificación de email
+    const successLoginMessage = localStorage.getItem("success_login_message");
+    if (successLoginMessage) {
+      addNotification("success", successLoginMessage);
+      localStorage.removeItem("success_login_message");
+    }
+
     if (errorParam) {
       addNotification("error", errorParam);
       searchParams.delete("error");
