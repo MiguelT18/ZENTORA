@@ -418,7 +418,6 @@ async def logout(
 async def refresh_token(
     request: Request,
     response: Response,
-    token: str = Depends(verify_token_not_blacklisted),
     redis: Redis = Depends(get_redis),
     db: AsyncSession = Depends(get_db),
 ):
@@ -426,19 +425,16 @@ async def refresh_token(
     # Obtener el refresh token de la cookie
     refresh_token = request.cookies.get("refresh_token")
 
-    # Usar el token de la cookie si está disponible, sino usar el token del header
-    token_to_use = refresh_token or token
-
-    if not token_to_use:
+    if not refresh_token:
         raise HTTPException(status_code=400, detail="No se proporcionó token de refresco")
 
     # Decodificar el token
-    payload = decode_token(token_to_use)
+    payload = decode_token(refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=400, detail="Token de refresco inválido")
 
     # Verificar expiración
-    expiration = get_token_expiration(token_to_use)
+    expiration = get_token_expiration(refresh_token)
     if not expiration:
         raise HTTPException(status_code=400, detail="Token de refresco inválido o mal formado")
 
@@ -459,7 +455,7 @@ async def refresh_token(
     redis_key = f"refresh_token:{user_id}"
     stored_token = await redis.hget(redis_key, "refresh_token")
 
-    if not stored_token or stored_token != token_to_use:
+    if not stored_token or stored_token != refresh_token:
         raise HTTPException(status_code=400, detail="Token de refresco inválido o expirado")
 
     # Obtener información del usuario de Redis
@@ -520,7 +516,7 @@ async def refresh_token(
     response.set_cookie(key="is_logged_in", value="true", max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS, path="/")
 
     # Añadir el token anterior a la lista negra
-    await redis.set(f"blacklisted_token:{token_to_use}", "true", ex=3600)
+    await redis.set(f"blacklisted_token:{refresh_token}", "true", ex=3600)
 
     response_data = {
         "message": "Tokens renovados exitosamente",

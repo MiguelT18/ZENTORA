@@ -6,15 +6,13 @@ import { useRouter } from "next/navigation";
 import { User } from "@/utils/types";
 
 interface AuthContextType {
-  accessToken: string | null;
   user: User | null;
-  login: (token: string, userData: User) => void;
+  login: (userData: User) => void;
   logout: () => void;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
-  accessToken: null,
   user: null,
   login: () => {},
   logout: () => {},
@@ -22,7 +20,6 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
@@ -62,26 +59,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [fetchUser]);
 
-  const login = (token: string, userData: User) => {
-    setAccessToken(token);
-    setUser(userData);
-  };
-
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await axios.post("/api/v1/auth/logout");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
     } finally {
-      setAccessToken(null);
       setUser(null);
       // Las cookies httpOnly se eliminan desde el backend
       router.push("/authentication/login");
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    const refreshTokensPeriodically = () => {
+      const interval = setInterval(async () => {
+        const isLoggedIn = document.cookie.includes("is_logged_in=true");
+        if (!isLoggedIn) return;
+
+        try {
+          const res = await axios.post("/api/v1/auth/refresh", null, {
+            withCredentials: true,
+          });
+
+          if (res.data?.user) {
+            setUser(res.data?.user);
+            console.log("✅ Tokens refrescados automáticamente.");
+          } else {
+            console.warn("⚠️ No se pudo actualizar el usuario tras refrescar token.");
+          }
+        } catch (err) {
+          console.error("❌ Error al refrescar tokens:", err);
+          logout();
+        }
+      }, 5 * 60 * 1000); // cada 5 minutos
+
+      return () => clearInterval(interval);
+    };
+
+    const stop = refreshTokensPeriodically();
+    return stop;
+  }, [logout]);
+
+  const login = (userData: User) => setUser(userData);
 
   return (
-    <AuthContext.Provider value={{ accessToken, user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

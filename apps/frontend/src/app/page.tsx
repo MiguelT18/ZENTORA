@@ -42,9 +42,6 @@ export default function Home() {
             { withCredentials: true }
           );
           addNotification("success", res.data.message);
-          if (res.data.user) {
-            login(res.data.access_token, res.data.user);
-          }
         } catch (e) {
           const error = e as AxiosError<{ detail: string }>;
           addNotification(
