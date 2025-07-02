@@ -53,6 +53,7 @@ import httpx
 from app.core.config.config import settings
 from secrets import token_urlsafe
 from pydantic import BaseModel
+from urllib.parse import urlencode
 
 router = APIRouter(prefix="/auth")
 
@@ -65,7 +66,7 @@ class ExchangeCodeRequest(BaseModel):
     temp_code: str
 
 
-@router.post("/register")
+@router.post("/register", status_code=201)
 async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)):
     """Endpoint para registrar un nuevo usuario."""
     logger.info(f"Iniciando proceso de registro para {user_in.email}")
@@ -128,23 +129,20 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
             await redis.delete(f"email_verification:{verification_token}")
             raise HTTPException(status_code=500, detail="No se pudo enviar el correo de verificación")
 
-        return JSONResponse(
-            content={
-                "message": "Usuario creado exitosamente. Por favor, verifica tu correo electrónico.",
-                "user": {
-                    "id": str(db_user.id),
-                    "email": db_user.email,
-                    "full_name": db_user.full_name,
-                    "role": db_user.role,
-                    "bio": db_user.bio,
-                    "avatar_url": db_user.avatar_url,
-                    "is_verified": db_user.is_verified,
-                    "status": db_user.status,
-                    "provider": db_user.provider,
-                },
+        return {
+            "message": "Usuario creado exitosamente. Por favor, verifica tu correo electrónico.",
+            "user": {
+                "id": str(db_user.id),
+                "email": db_user.email,
+                "full_name": db_user.full_name,
+                "role": db_user.role,
+                "bio": db_user.bio,
+                "avatar_url": db_user.avatar_url,
+                "is_verified": db_user.is_verified,
+                "status": db_user.status,
+                "provider": db_user.provider,
             },
-            status_code=201,
-        )
+        }
 
     except HTTPException as http_error:
         raise http_error
@@ -154,8 +152,13 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), r
         raise HTTPException(status_code=500, detail=f"Error inesperado durante el proceso de registro: {str(e)}")
 
 
-@router.post("/verify-email/{token}")
-async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)):
+@router.post("/verify-email/{token}", status_code=200)
+async def verify_email(
+    token: str,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
     email = await verify_email_token(redis, token)
 
     if not email:
@@ -168,16 +171,14 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
         .values(is_verified=True, status=UserStatus.ACTIVE, updated_at=datetime.now(UTC))
     )
     await db.execute(stmt)
+    await db.commit()
 
     # Obtener el usuario actualizado
-    stmt = select(UserModel).where(UserModel.email == email)
-    result = await db.execute(stmt)
+    result = await db.execute(select(UserModel).where(UserModel.email == email))
     user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    await db.commit()
 
     # Generar tokens de sesión
     access_token_data = {"sub": str(user.id), "email": user.email, "role": user.role, "type": "access"}
@@ -185,6 +186,28 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
 
     access_token = create_access_token(access_token_data)
     refresh_token = create_refresh_token(refresh_token_data)
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+        path="/",
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+        path="/",
+    )
+
+    response.set_cookie(key="is_logged_in", value="true", max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS, path="/")
 
     # Almacenar información del refresh token en Redis
     user_refresh_data = {
@@ -199,36 +222,31 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db), redis: Re
 
     redis_key = f"refresh_token:{user.id}"
     await redis.hset(redis_key, mapping=user_refresh_data)
-    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
+    await redis.expire(redis_key, settings.REFRESH_TOKEN_EXPIRE_SECONDS)
 
-    return JSONResponse(
-        content={
-            "message": "Email verificado exitosamente",
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "full_name": user.full_name,
-                "role": user.role,
-                "is_verified": user.is_verified,
-                "status": user.status,
-            },
+    response_data = {
+        "message": "Email verificado exitosamente",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_verified": user.is_verified,
+            "status": user.status,
         },
-        status_code=200,
-    )
+    }
+
+    return response_data
 
 
-@router.delete("/unverified")
+@router.delete("/unverified", status_code=200)
 async def cleanup_expired_users(db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)):
     """Elimina todos los usuarios no verificados que hayan expirado."""
     count = await cleanup_expired_unverified_users(db, redis)
-    return JSONResponse(
-        content={"message": f"Se eliminaron {count} usuarios no verificados", "deleted_count": count}, status_code=200
-    )
+    return {"message": f"Se eliminaron {count} usuarios no verificados", "deleted_count": count}
 
 
-@router.post("/resend-verification")
+@router.post("/resend-verification", status_code=200)
 async def resend_verification_email(
     email_request: EmailRequest, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
 ):
@@ -253,13 +271,10 @@ async def resend_verification_email(
     # Enviar nuevo email de verificación
     await send_verification_email(email_request.email, verification_token, db)
 
-    return JSONResponse(
-        content={"message": "Se ha enviado un nuevo correo de verificación", "email": email_request.email},
-        status_code=200,
-    )
+    return {"message": "Se ha enviado un nuevo correo de verificación", "email": email_request.email}
 
 
-@router.post("/login")
+@router.post("/login", status_code=200)
 async def login(
     response: Response, user_in: UserLogin, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
 ):
@@ -304,6 +319,28 @@ async def login(
     access_token = create_access_token(access_token_data)
     refresh_token = create_refresh_token(refresh_token_data)
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+        path="/",
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+        path="/",
+    )
+
+    response.set_cookie(key="is_logged_in", value="true", max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS, path="/")
+
     # Crear hash con información del usuario y refresh token
     user_refresh_data = {
         "refresh_token": refresh_token,
@@ -318,48 +355,38 @@ async def login(
     # Almacenar hash en Redis
     redis_key = f"refresh_token:{user.id}"
     await redis.hset(redis_key, mapping=user_refresh_data)
-    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
+    await redis.expire(redis_key, settings.REFRESH_TOKEN_EXPIRE_SECONDS)
 
-    # Configurar cookie segura para el refresh token
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=7 * 24 * 60 * 60,  # 7 días en segundos
-        path="/auth/refresh",  # Solo accesible en el endpoint de refresh
-    )
-
-    return JSONResponse(
-        content={
-            "message": "Inicio de sesión exitoso",
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "full_name": user.full_name,
-                "role": user.role,
-                "is_verified": user.is_verified,
-                "status": user.status,
-                "provider": user.provider,
-                "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
-            },
+    return {
+        "message": "Inicio de sesión exitoso",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_verified": user.is_verified,
+            "status": user.status,
+            "provider": user.provider,
+            "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
         },
-        status_code=200,
-    )
+    }
 
 
-@router.post("/logout/{user_id}")
+@router.post("/logout")
 async def logout(
     response: Response,
-    user_id: UUID,
     token: str = Depends(verify_token_not_blacklisted),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
     """Endpoint para cerrar sesión."""
+    # Decodificar el token para obtener el ID del usuario
+    payload = decode_token(token)
+    if not payload or "sub" not in payload:
+        raise HTTPException(status_code=401, detail="Token inválido o mal formado")
+
+    user_id = payload["sub"]
+
     # Actualizar estado is_active
     result = await db.execute(
         update(UserModel).where(UserModel.id == user_id).values(status=UserStatus.INACTIVE).returning(UserModel)
@@ -379,17 +406,18 @@ async def logout(
     # Añadir el token actual a la lista negra
     await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
 
-    # Eliminar la cookie del refresh token
-    response.delete_cookie(key="refresh_token", path="/auth/refresh", secure=True, httponly=True)
+    # Eliminar cookies relacionadas con la sesión
+    response.delete_cookie(key="refresh_token", secure=True, httponly=True)
+    response.delete_cookie(key="access_token", secure=True, httponly=True)
+    response.delete_cookie(key="is_logged_in")
 
-    return JSONResponse(content={"message": "Sesión cerrada exitosamente"}, status_code=200)
+    return {"message": "Sesión cerrada exitosamente"}
 
 
-@router.post("/refresh")
+@router.post("/refresh", status_code=201)
 async def refresh_token(
     request: Request,
     response: Response,
-    token: str | None = None,
     redis: Redis = Depends(get_redis),
     db: AsyncSession = Depends(get_db),
 ):
@@ -397,19 +425,16 @@ async def refresh_token(
     # Obtener el refresh token de la cookie
     refresh_token = request.cookies.get("refresh_token")
 
-    # Usar el token de la cookie si está disponible, sino usar el token del header
-    token_to_use = refresh_token or token
-
-    if not token_to_use:
+    if not refresh_token:
         raise HTTPException(status_code=400, detail="No se proporcionó token de refresco")
 
     # Decodificar el token
-    payload = decode_token(token_to_use)
+    payload = decode_token(refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=400, detail="Token de refresco inválido")
 
     # Verificar expiración
-    expiration = get_token_expiration(token_to_use)
+    expiration = get_token_expiration(refresh_token)
     if not expiration:
         raise HTTPException(status_code=400, detail="Token de refresco inválido o mal formado")
 
@@ -430,7 +455,7 @@ async def refresh_token(
     redis_key = f"refresh_token:{user_id}"
     stored_token = await redis.hget(redis_key, "refresh_token")
 
-    if not stored_token or stored_token != token_to_use:
+    if not stored_token or stored_token != refresh_token:
         raise HTTPException(status_code=400, detail="Token de refresco inválido o expirado")
 
     # Obtener información del usuario de Redis
@@ -464,26 +489,37 @@ async def refresh_token(
     # Almacenar nuevo hash en Redis
     await redis.delete(redis_key)  # Eliminar el hash anterior
     await redis.hset(redis_key, mapping=user_refresh_data)
-    await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días en segundos
+    await redis.expire(redis_key, settings.REFRESH_TOKEN_EXPIRE_SECONDS)
 
     # Actualizar la cookie con el nuevo refresh token
     response.set_cookie(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
-        secure=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
         samesite="lax",
-        max_age=7 * 24 * 60 * 60,  # 7 días en segundos
-        path="/auth/refresh",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+        path="/",
     )
 
+    # Actualizar la cookie con el nuevo access token
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        secure=False if settings.ENVIRONMENT == "development" else True,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+        path="/",
+    )
+
+    response.set_cookie(key="is_logged_in", value="true", max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS, path="/")
+
     # Añadir el token anterior a la lista negra
-    await redis.set(f"blacklisted_token:{token_to_use}", "true", ex=3600)
+    await redis.set(f"blacklisted_token:{refresh_token}", "true", ex=3600)
 
     response_data = {
         "message": "Tokens renovados exitosamente",
-        "access_token": new_access_token,
-        "token_type": "bearer",
         "user": {
             "id": user_data["user_id"],
             "email": user_data["email"],
@@ -499,13 +535,10 @@ async def refresh_token(
             f"Su sesión expirará en {time_until_expiry.days} días y {time_until_expiry.seconds // 3600} horas. Considere iniciar sesión nuevamente."
         )
 
-    return JSONResponse(
-        content=response_data,
-        status_code=200,
-    )
+    return response_data
 
 
-@router.get("/me")
+@router.get("/me", status_code=200)
 async def get_current_user(token: str = Depends(verify_token_not_blacklisted), db: AsyncSession = Depends(get_db)):
     """Endpoint para obtener información del usuario autenticado."""
     try:
@@ -523,24 +556,21 @@ async def get_current_user(token: str = Depends(verify_token_not_blacklisted), d
         if not user:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-        return JSONResponse(
-            content={
-                "user": {
-                    "id": str(user.id),
-                    "email": user.email,
-                    "full_name": user.full_name,
-                    "role": user.role,
-                    "bio": user.bio,
-                    "avatar_url": user.avatar_url,
-                    "is_verified": user.is_verified,
-                    "status": user.status,
-                    "provider": user.provider,
-                    "created_at": user.created_at.isoformat(),
-                    "updated_at": user.updated_at.isoformat(),
-                }
-            },
-            status_code=200,
-        )
+        return {
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role,
+                "bio": user.bio,
+                "avatar_url": user.avatar_url,
+                "is_verified": user.is_verified,
+                "status": user.status,
+                "provider": user.provider,
+                "created_at": user.created_at.isoformat(),
+                "updated_at": user.updated_at.isoformat(),
+            }
+        }
 
     except HTTPException as http_error:
         raise http_error
@@ -550,7 +580,7 @@ async def get_current_user(token: str = Depends(verify_token_not_blacklisted), d
         raise HTTPException(status_code=500, detail=f"Error inesperado al obtener información del usuario: {str(e)}")
 
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", status_code=200)
 async def forgot_password(
     reset_request: PasswordResetRequest, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
 ):
@@ -562,12 +592,7 @@ async def forgot_password(
 
         if not user:
             # Por seguridad, no revelamos si el email existe o no
-            return JSONResponse(
-                content={
-                    "message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"
-                },
-                status_code=200,
-            )
+            return {"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"}
 
         # Verificar si el usuario se registró con un proveedor social
         if user.provider != AuthProvider.LOCAL:
@@ -575,12 +600,7 @@ async def forgot_password(
             logger.warning(
                 f"Intento de recuperación de contraseña para cuenta social: {user.email} (provider: {user.provider})"
             )
-            return JSONResponse(
-                content={
-                    "message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"
-                },
-                status_code=200,
-            )
+            return {"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"}
 
         if not user.is_verified:
             raise HTTPException(
@@ -594,10 +614,7 @@ async def forgot_password(
         # Enviar correo con el token
         await send_password_reset_email(reset_request.email, reset_token, db)
 
-        return JSONResponse(
-            content={"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"},
-            status_code=200,
-        )
+        return {"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"}
 
     except HTTPException as http_error:
         raise http_error
@@ -605,13 +622,10 @@ async def forgot_password(
         logger.error(f"Error inesperado en recuperación de contraseña: {str(e)}")
         logger.exception("Stacktrace completo:")
         # Por seguridad, no revelamos detalles del error
-        return JSONResponse(
-            content={"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"},
-            status_code=200,
-        )
+        return {"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña"}
 
 
-@router.put("/reset-password")
+@router.put("/reset-password", status_code=200)
 async def reset_password(
     reset_data: PasswordResetVerify, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
 ):
@@ -658,12 +672,7 @@ async def reset_password(
         redis_key = f"refresh_token:{user.id}"
         await redis.delete(redis_key)
 
-        return JSONResponse(
-            content={
-                "message": "Contraseña actualizada exitosamente. Por favor, inicia sesión con tu nueva contraseña."
-            },
-            status_code=200,
-        )
+        return {"message": "Contraseña actualizada exitosamente. Por favor, inicia sesión con tu nueva contraseña."}
 
     except HTTPException as http_error:
         raise http_error
@@ -673,8 +682,41 @@ async def reset_password(
         raise HTTPException(status_code=500, detail="Error inesperado al restablecer la contraseña")
 
 
-@router.patch("/change-password")
+@router.post("/resend-password-verification", status_code=200)
+async def resend_reset_password(
+    reset_request: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Endpoint para reenviar el token de recuperación de contraseña."""
+    try:
+        # Verificar si el usuario existe
+        result = await db.execute(select(UserModel).where(UserModel.email == reset_request.email))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        # Generar token de recuperación
+        reset_token = await generate_password_reset_token(redis, reset_request.email)
+
+        # Enviar correo con el token
+        await send_password_reset_email(reset_request.email, reset_token, db)
+
+        return {"message": "Se ha enviado un nuevo token de recuperación de contraseña"}
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error inesperado en reenvío de token de recuperación de contraseña: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500, detail="Error inesperado en reenvío de token de recuperación de contraseña"
+        )
+
+
+@router.patch("/change-password", status_code=200)
 async def change_password(
+    response: Response,
     password_data: PasswordChange,
     token: str = Depends(verify_token_not_blacklisted),
     db: AsyncSession = Depends(get_db),
@@ -731,12 +773,11 @@ async def change_password(
         # Añadir el token actual a la lista negra
         await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
 
-        return JSONResponse(
-            content={
-                "message": "Contraseña actualizada exitosamente. Por favor, inicia sesión nuevamente con tu nueva contraseña."
-            },
-            status_code=200,
-        )
+        response.delete_cookie(key="is_logged_in", path="/")
+
+        return {
+            "message": "Contraseña actualizada exitosamente. Por favor, inicia sesión nuevamente con tu nueva contraseña."
+        }
 
     except HTTPException as http_error:
         raise http_error
@@ -746,8 +787,9 @@ async def change_password(
         raise HTTPException(status_code=500, detail="Error inesperado al cambiar la contraseña")
 
 
-@router.delete("/delete-account")
+@router.delete("/delete-account", status_code=200)
 async def delete_account(
+    response: Response,
     delete_data: DeleteAccount,
     token: str = Depends(verify_token_not_blacklisted),
     db: AsyncSession = Depends(get_db),
@@ -788,10 +830,9 @@ async def delete_account(
         # Añadir el token actual a la lista negra
         await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
 
-        return JSONResponse(
-            content={"message": "Cuenta eliminada exitosamente"},
-            status_code=200,
-        )
+        response.delete_cookie(key="is_logged_in", path="/")
+
+        return {"message": "Cuenta eliminada exitosamente"}
 
     except HTTPException as http_error:
         raise http_error
@@ -801,8 +842,9 @@ async def delete_account(
         raise HTTPException(status_code=500, detail="Error inesperado al eliminar la cuenta")
 
 
-@router.delete("/revoke")
+@router.delete("/revoke", status_code=200)
 async def revoke_all_sessions(
+    response: Response,
     revoke_data: RevokeAllSessions,
     token: str = Depends(verify_token_not_blacklisted),
     db: AsyncSession = Depends(get_db),
@@ -843,12 +885,9 @@ async def revoke_all_sessions(
         # Añadir el token actual a la lista negra
         await redis.set(f"blacklisted_token:{token}", "true", ex=3600)  # expira en 1 hora
 
-        return JSONResponse(
-            content={
-                "message": "Todas las sesiones han sido revocadas exitosamente. Por favor, inicia sesión nuevamente."
-            },
-            status_code=200,
-        )
+        response.delete_cookie(key="is_logged_in", path="/")
+
+        return {"message": "Todas las sesiones han sido revocadas exitosamente. Por favor, inicia sesión nuevamente."}
 
     except HTTPException as http_error:
         raise http_error
@@ -923,6 +962,7 @@ async def list_active_sessions(
 
 @router.post("/reactivate")
 async def reactivate_account(
+    response: Response,
     reactivate_data: ReactivateAccount,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
@@ -974,26 +1014,23 @@ async def reactivate_account(
         await redis.hset(redis_key, mapping=user_refresh_data)
         await redis.expire(redis_key, 7 * 24 * 60 * 60)  # 7 días
 
-        return JSONResponse(
-            content={
-                "message": "Cuenta reactivada exitosamente",
-                "access_token": access_token,
-                "token_type": "bearer",
-                "user": {
-                    "id": str(user.id),
-                    "email": user.email,
-                    "full_name": user.full_name,
-                    "role": user.role,
-                    "bio": user.bio,
-                    "avatar_url": user.avatar_url,
-                    "is_verified": user.is_verified,
-                    "status": user.status,
-                    "provider": user.provider,
-                    "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
-                },
+        response.set_cookie(key="is_logged_in", value="true", max_age=7 * 24 * 60 * 60, path="/")
+
+        return {
+            "message": "Cuenta reactivada exitosamente",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role,
+                "bio": user.bio,
+                "avatar_url": user.avatar_url,
+                "is_verified": user.is_verified,
+                "status": user.status,
+                "provider": user.provider,
+                "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
             },
-            status_code=200,
-        )
+        }
 
     except HTTPException as http_error:
         raise http_error
@@ -1030,13 +1067,10 @@ async def github_login():
         logger.debug(f"Client ID usado: {settings.GITHUB_CLIENT_ID}")
         logger.debug(f"Redirect URI configurado: {settings.GITHUB_REDIRECT_URI}")
 
-        return JSONResponse(
-            content={
-                "authorization_url": github_auth_url,
-                "state": state,
-            },
-            status_code=200,
-        )
+        return {
+            "authorization_url": github_auth_url,
+            "state": state,
+        }
     except HTTPException as http_error:
         raise http_error
     except Exception as e:
@@ -1134,24 +1168,21 @@ async def exchange_temp_code(
             path="/auth/refresh",
         )
 
+        response.set_cookie(key="is_logged_in", value="true", max_age=7 * 24 * 60 * 60, path="/")
+
         # Devolver respuesta con tokens y datos del usuario actualizados
-        return JSONResponse(
-            content={
-                "message": "Inicio de sesión con GitHub exitoso",
-                "access_token": auth_data["jwt_access_token"],
-                "token_type": "bearer",
-                "user": {
-                    "id": auth_data["user_id"],
-                    "email": auth_data["email"],
-                    "full_name": auth_data["full_name"],
-                    "avatar_url": auth_data.get("avatar_url", ""),
-                    "provider": auth_data["provider"],
-                    "role": auth_data["role"],
-                    "status": UserStatus.ACTIVE.value,  # Usar el valor actualizado
-                },
+        return {
+            "message": "Inicio de sesión exitoso",
+            "user": {
+                "id": auth_data["user_id"],
+                "email": auth_data["email"],
+                "full_name": auth_data["full_name"],
+                "avatar_url": auth_data.get("avatar_url", ""),
+                "provider": auth_data["provider"],
+                "role": auth_data["role"],
+                "status": UserStatus.ACTIVE.value,  # Usar el valor actualizado
             },
-            status_code=200,
-        )
+        }
 
     except HTTPException as http_error:
         raise http_error
@@ -1210,7 +1241,7 @@ async def github_callback(
             safe_log_data["client_secret"] = "***" + settings.GITHUB_CLIENT_SECRET[-4:]
             logger.debug(f"Datos de la petición a GitHub: {safe_log_data}")
 
-            response = await client.post(
+            github_response = await client.post(
                 "https://github.com/login/oauth/access_token",
                 headers={
                     "Accept": "application/json",
@@ -1219,21 +1250,21 @@ async def github_callback(
                 timeout=30.0,
             )
 
-            logger.debug(f"Respuesta de GitHub - Status: {response.status_code}")
-            logger.debug(f"Respuesta de GitHub - Headers: {response.headers}")
-            logger.debug(f"Respuesta de GitHub - Body: {response.text}")
+            logger.debug(f"Respuesta de GitHub - Status: {github_response.status_code}")
+            logger.debug(f"Respuesta de GitHub - Headers: {github_response.headers}")
+            logger.debug(f"Respuesta de GitHub - Body: {github_response.text}")
 
-            if response.status_code != 200:
-                logger.error(f"Error en la respuesta de GitHub: {response.text}")
+            if github_response.status_code != 200:
+                logger.error(f"Error en la respuesta de GitHub: {github_response.text}")
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Error al obtener el token de acceso de GitHub. Status: {response.status_code}, Response: {response.text}",
+                    detail=f"Error al obtener el token de acceso de GitHub. Status: {github_response.status_code}, Response: {github_response.text}",
                 )
 
             try:
-                token_data = response.json()
+                token_data = github_response.json()
             except Exception as e:
-                logger.error(f"Error al parsear la respuesta JSON: {response.text}")
+                logger.error(f"Error al parsear la respuesta JSON: {github_response.text}")
                 logger.exception("Error detallado:")
                 raise HTTPException(
                     status_code=500,
@@ -1294,29 +1325,11 @@ async def github_callback(
             else:
                 # Verificar si el usuario ya está registrado con otro proveedor social
                 if user.provider != social_login_data.provider:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método.",
-                    )
-
-                # Actualizar información del usuario si es necesario
-                update_data = {
-                    "last_login_at": datetime.now(UTC),
-                    "status": UserStatus.INACTIVE,  # Establecer como inactivo hasta completar el exchange
-                }
-
-                if social_profile.avatar_url and not user.avatar_url:
-                    update_data["avatar_url"] = social_profile.avatar_url
-                if social_profile.full_name and not user.full_name:
-                    update_data["full_name"] = social_profile.full_name
-                if not user.provider_id:
-                    update_data["provider_id"] = social_profile.provider_id
-
-                await db.execute(
-                    update(UserModel).where(UserModel.id == user.id).values(**update_data, updated_at=datetime.now(UTC))
-                )
-                await db.commit()
-                await db.refresh(user)
+                    error_message = f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método."
+                    params = urlencode({"error": error_message})
+                    frontend_url = "http://localhost/"
+                    redirect_url = f"{frontend_url}?{params}"
+                    return RedirectResponse(url=redirect_url, status_code=303)
 
             # Crear tokens JWT para la sesión
             access_token_data = {
@@ -1349,7 +1362,32 @@ async def github_callback(
             frontend_url = "http://localhost/"
             redirect_url = f"{frontend_url}?temp_code={temp_code}"
 
-            return RedirectResponse(url=redirect_url, status_code=303)
+            redirect_response = RedirectResponse(url=redirect_url, status_code=303)
+            redirect_response.set_cookie(
+                key="is_logged_in",
+                value="true",
+                max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+                path="/",
+            )
+            redirect_response.set_cookie(
+                key="access_token",
+                value=jwt_access_token,
+                httponly=True,
+                secure=False if settings.ENVIRONMENT == "development" else True,
+                samesite="lax",
+                max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+                path="/",
+            )
+            redirect_response.set_cookie(
+                key="refresh_token",
+                value=jwt_refresh_token,
+                httponly=True,
+                secure=False if settings.ENVIRONMENT == "development" else True,
+                samesite="lax",
+                max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+                path="/",
+            )
+            return redirect_response
 
     except HTTPException as http_error:
         raise http_error
@@ -1396,13 +1434,10 @@ async def google_login(redis: Redis = Depends(get_redis)):
         logger.debug(f"Redirect URI configurado: {settings.GOOGLE_REDIRECT_URI}")
         logger.debug(f"State generado: {state}")
 
-        return JSONResponse(
-            content={
-                "authorization_url": google_auth_url,
-                "state": state,
-            },
-            status_code=200,
-        )
+        return {
+            "authorization_url": google_auth_url,
+            "state": state,
+        }
     except HTTPException as http_error:
         raise http_error
     except Exception as e:
@@ -1544,10 +1579,11 @@ async def google_callback(
             else:
                 # Verificar si el usuario ya está registrado con otro proveedor social
                 if user.provider != social_login_data.provider:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método.",
-                    )
+                    error_message = f"Este correo electrónico ya está registrado usando {user.provider}. Por favor, inicie sesión con ese método."
+                    params = urlencode({"error": error_message})
+                    frontend_url = "http://localhost/"
+                    redirect_url = f"{frontend_url}?{params}"
+                    return RedirectResponse(url=redirect_url, status_code=303)
 
                 # Actualizar información del usuario si es necesario
                 update_data = {
@@ -1599,7 +1635,32 @@ async def google_callback(
             frontend_url = "http://localhost/"
             redirect_url = f"{frontend_url}?temp_code={temp_code}"
 
-            return RedirectResponse(url=redirect_url, status_code=303)
+            redirect_response = RedirectResponse(url=redirect_url, status_code=303)
+            redirect_response.set_cookie(
+                key="is_logged_in",
+                value="true",
+                max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+                path="/",
+            )
+            redirect_response.set_cookie(
+                key="access_token",
+                value=jwt_access_token,
+                httponly=True,
+                secure=False if settings.ENVIRONMENT == "development" else True,
+                samesite="lax",
+                max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+                path="/",
+            )
+            redirect_response.set_cookie(
+                key="refresh_token",
+                value=jwt_refresh_token,
+                httponly=True,
+                secure=False if settings.ENVIRONMENT == "development" else True,
+                samesite="lax",
+                max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
+                path="/",
+            )
+            return redirect_response
 
     except HTTPException as http_error:
         raise http_error
@@ -1652,24 +1713,21 @@ async def update_profile(
         await db.commit()
         await db.refresh(user)
 
-        return JSONResponse(
-            content={
-                "message": "Perfil actualizado exitosamente",
-                "user": {
-                    "id": str(user.id),
-                    "email": user.email,
-                    "full_name": user.full_name,
-                    "bio": user.bio,
-                    "avatar_url": user.avatar_url,
-                    "role": user.role,
-                    "is_verified": user.is_verified,
-                    "status": user.status,
-                    "provider": user.provider,
-                    "updated_at": user.updated_at.isoformat(),
-                },
+        return {
+            "message": "Perfil actualizado exitosamente",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "bio": user.bio,
+                "avatar_url": user.avatar_url,
+                "role": user.role,
+                "is_verified": user.is_verified,
+                "status": user.status,
+                "provider": user.provider,
+                "updated_at": user.updated_at.isoformat(),
             },
-            status_code=200,
-        )
+        }
 
     except HTTPException as http_error:
         raise http_error

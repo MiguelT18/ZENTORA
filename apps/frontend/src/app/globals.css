@@ -1,26 +1,77 @@
-@import 'tailwindcss';
+@import "tailwindcss";
+@import "@fontsource/lato";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  /* Dark Colors */
+  --color-dark-bg: #121212;
+  --color-dark-bg-secondary: #181818;
+  --color-dark-bg-surface: #1e1e1e;
+
+  --color-dark-text-primary: #f5f5f5;
+  --color-dark-text-secondary: #aaaaaa;
+  --color-dark-text-disabled: #444444;
+  --color-dark-text-muted: #777777;
+  --color-dark-text-inverse: #ffffff;
+
+  /* Light Colors */
+  --color-light-bg: #ffffff;
+  --color-light-bg-secondary: #f5f5f5;
+  --color-light-bg-surface: #e5e5e5;
+
+  --color-light-text-primary: #111111;
+  --color-light-text-secondary: #666666;
+  --color-light-text-disabled: #cccccc;
+  --color-light-text-muted: #999999;
+  --color-light-text-inverse: #cccccc;
+
+
+  /* Accent Colors */
+  --color-primary: #6366f1;
+  --color-secondary: #14b8a6;
+
+  --color-success: #22c55e;
+  --color-warning: #facc15;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-lato: "Lato", sans-serif;
+  --font-roboto: "Roboto", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --text-xs: clamp(0.75rem, 0.7rem + 0.1vw, 0.85rem);
+  --text-sm: clamp(0.85rem, 0.8rem + 0.12vw, 1rem);
+  --text-md: clamp(1rem, 0.95rem + 0.14vw, 1.15rem);
+  --text-lg: clamp(1.15rem, 1.1rem + 0.15vw, 1.35rem);
+  --text-xl: clamp(1.3rem, 1.25rem + 0.18vw, 1.6rem);
+  --text-2xl: clamp(1.5rem, 1.4rem + 0.2vw, 1.9rem);
+  --text-3xl: clamp(1.8rem, 1.6rem + 0.24vw, 2.3rem);
+  --text-4xl: clamp(2.1rem, 1.9rem + 0.28vw, 2.7rem);
+  --text-5xl: clamp(2.5rem, 2.2rem + 0.32vw, 3.2rem);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Roboto", sans-serif;
+}
+
+/* Estilos para controlar el autocompletado */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--color-light-bg) inset !important;
+  -webkit-text-fill-color: var(--color-light-text-primary) !important;
+}
+
+/* Estilos para modo oscuro */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--color-dark-bg) inset !important;
+  -webkit-text-fill-color: var(--color-dark-text-primary) !important;
 }

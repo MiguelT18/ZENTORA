@@ -1,24 +1,111 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { useNotification } from "@/context/NotificationContext";
+import axios, { AxiosError } from "axios";
+import { useAuth } from "@/context/AuthContext";
+import Loading from "./loading";
 
 export default function Home() {
-  return (
-    <div className='flex flex-col items-center justify-center h-screen'>
-      <h1>ZENTORA APP</h1>
-      <p>Bienvenido a Zentora</p>
+  const { addNotification } = useNotification();
+  const { login, user, isLoading, logout } = useAuth();
 
-      <div className='flex gap-4 mt-4'>
-        <Link
-          href='/register'
-          className='bg-blue-500 text-white px-4 py-2 rounded-md'
-        >
-          Crear una cuenta
-        </Link>
-        <Link
-          href='/login'
-          className='bg-blue-500 text-white px-4 py-2 rounded-md'
-        >
-          Iniciar sesión
-        </Link>
+  const isProcessing = useRef(false);
+
+  const [showLoading, setShowLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isLoading) {
+      const timeout = setTimeout(() => setShowLoading(false), 200);
+      return () => clearTimeout(timeout);
+    } else {
+      setShowLoading(true);
+    }
+  }, [isLoading]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const tempCode = searchParams.get("temp_code");
+    const errorParam = searchParams.get("error");
+
+    // Mostrar mensaje de éxito tras verificación de email
+    const successLoginMessage = localStorage.getItem("success_login_message");
+    if (successLoginMessage) {
+      addNotification("success", successLoginMessage);
+      localStorage.removeItem("success_login_message");
+    }
+
+    if (errorParam) {
+      addNotification("error", errorParam);
+      searchParams.delete("error");
+      const newUrl = window.location.pathname + (searchParams.toString() ? `?${searchParams}` : "");
+      window.history.replaceState({}, document.title, newUrl);
+    }
+
+    if (tempCode && !isProcessing.current) {
+      isProcessing.current = true;
+      const exchangeTempCode = async () => {
+        try {
+          const res = await axios.post(
+            "/api/v1/auth/exchange-temp-code",
+            {
+              temp_code: tempCode,
+            },
+            { withCredentials: true }
+          );
+          addNotification("success", res.data.message);
+        } catch (e) {
+          const error = e as AxiosError<{ detail: string }>;
+          addNotification(
+            "error",
+            error.response?.data.detail || "Ha ocurrido un error al iniciar sesión"
+          );
+        } finally {
+          // Elimina el temp_code de la URL después de usarlo, exitoso o no
+          searchParams.delete("temp_code");
+          const newUrl =
+            window.location.pathname + (searchParams.toString() ? `?${searchParams}` : "");
+          window.history.replaceState({}, document.title, newUrl);
+        }
+      };
+      exchangeTempCode();
+    }
+  }, [addNotification, login]);
+
+  if (showLoading) return <Loading />;
+
+  return (
+    <div className="flex flex-col items-center justify-center h-screen text-center">
+      <h1 className="text-4xl uppercase font-bold">Sistema de Autenticación</h1>
+      <p className="text-md text-light-text-secondary dark:text-dark-text-secondary">
+        Bienvenido a nuestro sistema de login y registro
+      </p>
+
+      <div className="flex gap-4 items-center mt-4">
+        {!user ? (
+          <>
+            <Link
+              href="/authentication/login"
+              className="text-white bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors p-2 rounded-md text-sm tracking-wider"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href="/authentication/register"
+              className="border-light-bg-surface border p-2 rounded-md hover:bg-light-bg-surface transition-colors dark:border-dark-bg-surface dark:hover:bg-dark-bg-surface tracking-wider text-sm"
+            >
+              Registrarse
+            </Link>
+          </>
+        ) : (
+          <button
+            onClick={logout}
+            className="text-white bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors p-2 rounded-md text-sm tracking-wider cursor-pointer"
+          >
+            Cerrar sesión
+          </button>
+        )}
       </div>
     </div>
   );

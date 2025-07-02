@@ -25,9 +25,9 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    SECRET_KEY: str = os.getenv("SECRET_KEY")
+    ACCESS_TOKEN_EXPIRE_SECONDS: int = 30 * 60  # 30 minutos en segundos
+    REFRESH_TOKEN_EXPIRE_SECONDS: int = 7 * 24 * 60 * 60  # 7 días en segundos
     ALGORITHM: str = "HS256"
 
     # Database
@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     REDIS_URL: Optional[str] = os.getenv("REDIS_URL")  # Permitir REDIS_URL como alternativa
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost", "http://localhost:3000"]
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
@@ -135,7 +135,7 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Verificar configuraciones críticas
+# Verificar configuraciones de GitHub OAuth
 if settings.GITHUB_CLIENT_ID:
     logger.info("GITHUB_CLIENT_ID está configurada")
 else:
@@ -151,7 +151,7 @@ if settings.GITHUB_REDIRECT_URI:
 else:
     logger.warning("GITHUB_REDIRECT_URI no está configurada")
 
-# Verificar configuraciones de Google
+# Verificar configuraciones de Google OAuth
 if settings.GOOGLE_CLIENT_ID:
     logger.info("GOOGLE_CLIENT_ID está configurada")
 else:
