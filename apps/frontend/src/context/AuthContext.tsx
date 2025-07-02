@@ -22,6 +22,8 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [delayedLoading, setDelayedLoading] = useState(true);
+
   const router = useRouter();
 
   const fetchUser = useCallback(async () => {
@@ -40,6 +42,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isLoading) {
+      const timeout = setTimeout(() => setDelayedLoading(false), 200);
+      return () => clearTimeout(timeout);
+    } else {
+      setDelayedLoading(true);
+    }
+  }, [isLoading]);
 
   useEffect(() => {
     // Helper para leer cookies
@@ -104,7 +115,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = (userData: User) => setUser(userData);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading: delayedLoading }}>
       {children}
     </AuthContext.Provider>
   );

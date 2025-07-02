@@ -1,15 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNotification } from "@/context/NotificationContext";
 import axios, { AxiosError } from "axios";
 import { useAuth } from "@/context/AuthContext";
+import Loading from "./loading";
 
 export default function Home() {
   const { addNotification } = useNotification();
   const { login, user, isLoading, logout } = useAuth();
+
   const isProcessing = useRef(false);
+
+  const [showLoading, setShowLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isLoading) {
+      const timeout = setTimeout(() => setShowLoading(false), 200);
+      return () => clearTimeout(timeout);
+    } else {
+      setShowLoading(true);
+    }
+  }, [isLoading]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -60,9 +73,7 @@ export default function Home() {
     }
   }, [addNotification, login]);
 
-  if (isLoading) {
-    return <div>Cargando...</div>;
-  }
+  if (showLoading) return <Loading />;
 
   return (
     <div className="flex flex-col items-center justify-center h-screen text-center">
@@ -76,7 +87,7 @@ export default function Home() {
           <>
             <Link
               href="/authentication/login"
-              className="text-white bg-primary hover:bg-primary/80 transition-colors p-2 rounded-md text-sm tracking-wider"
+              className="text-white bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors p-2 rounded-md text-sm tracking-wider"
             >
               Iniciar sesión
             </Link>
@@ -90,7 +101,7 @@ export default function Home() {
         ) : (
           <button
             onClick={logout}
-            className="text-white bg-primary hover:bg-primary/80 transition-colors p-2 rounded-md text-sm tracking-wider cursor-pointer"
+            className="text-white bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors p-2 rounded-md text-sm tracking-wider cursor-pointer"
           >
             Cerrar sesión
           </button>

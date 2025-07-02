@@ -230,8 +230,8 @@ export default function RegisterPage() {
         className="w-full max-w-md m-auto bg-light-bg-secondary dark:bg-dark-bg-surface p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
       >
         <header>
-          <span className="block size-fit rounded-full bg-secondary/10 dark:bg-secondary-dark/10 p-3 mx-auto mb-2">
-            <GlobalIcons.AnimatedEmailIcon className="size-8 text-secondary dark:text-primary-dark mx-auto" />
+          <span className="block size-fit rounded-full bg-secondary/10 dark:bg-primary/10 p-3 mx-auto mb-2">
+            <GlobalIcons.AnimatedEmailIcon className="size-8 text-secondary dark:text-primary mx-auto" />
           </span>
 
           <h1 className="text-xl font-bold mb-2 text-center text-light-text-primary dark:text-dark-text-primary">
@@ -272,7 +272,7 @@ export default function RegisterPage() {
                   }
                   onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => handleKeyDown(index, e)}
                   onPaste={index === 0 ? handlePaste : undefined}
-                  className="w-9 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold border rounded-lg bg-light-bg dark:bg-dark-bg dark:text-dark-text-primary text-light-text-primary focus:border-secondary focus:ring-2 focus:ring-secondary/20 focus:outline-none transition-all duration-200 hover:border-secondary/50 border-light-bg-surface dark:border-dark-bg-surface"
+                  className="w-9 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold border rounded-lg bg-light-bg dark:bg-dark-bg dark:text-dark-text-primary text-light-text-primary focus:border-secondary dark:focus:border-primary focus:ring-2 focus:ring-secondary/20 dark:focus:ring-primary/20 focus:outline-none transition-all duration-200 hover:border-secondary/50 dark:hover:border-primary/50 border-light-bg-surface dark:border-dark-bg-surface"
                 />
               ))}
           </div>
@@ -283,7 +283,7 @@ export default function RegisterPage() {
 
           <button
             onClick={verifyCode}
-            className="w-full bg-secondary hover:bg-secondary/80 transition-colors text-white py-2 rounded-md mt-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors text-white py-2 rounded-md mt-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={code.some((digit) => !digit) || loading === "verify"}
           >
             {loading === "verify" ? "Verificando..." : "Verificar Código"}
@@ -297,16 +297,16 @@ export default function RegisterPage() {
 
           <button
             onClick={resendCode}
-            className="bg-background dark:bg-background-dark transition-colors text-secondary dark:text-primary-dark px-4 py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-fit flex items-center border border-border dark:border-border-dark hover:bg-secondary/10 dark:hover:bg-secondary-dark/10 "
+            className="bg-background dark:bg-background-dark transition-colors text-secondary dark:text-primary px-4 py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-fit flex items-center border border-border dark:border-border-dark hover:bg-secondary/10 dark:hover:bg-primary/10 mx-auto"
             disabled={loading === "resend"}
           >
-            <GlobalIcons.RestartIcon className="size-4 mr-2 text-secondary dark:text-primary-dark" />
+            <GlobalIcons.RestartIcon className="size-4 mr-2 text-secondary dark:text-primary" />
             {loading === "resend" ? "Reenviando..." : "Reenviar Código"}
           </button>
 
           <Link
             href="/authentication/login"
-            className="flex items-center gap-2 text-sm text-light-text-secondary dark:text-dark-text-secondary text-center mt-4 hover:text-secondary dark:hover:text-primary-dark transition-colors cursor-pointer"
+            className="flex items-center gap-2 text-sm text-light-text-secondary dark:text-dark-text-secondary text-center mt-4 hover:text-secondary dark:hover:text-primary transition-colors cursor-pointer"
           >
             <GlobalIcons.ArrowIcon className="size-4 rotate-180" />
             Volver al inicio de sesión
@@ -514,7 +514,7 @@ export default function RegisterPage() {
 
               <button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/80 transition-colors text-white py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors text-white py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={loading === "register"}
               >
                 {loading === "register" ? "Creando..." : "Crear cuenta"}
@@ -523,7 +523,7 @@ export default function RegisterPage() {
           </section>
 
           <footer className="mt-4">
-            <p className="text-sm text-text-secondary dark:text-text-secondary-dark text-center">
+            <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary text-center">
               O regístrate con
             </p>
 
@@ -550,7 +550,7 @@ export default function RegisterPage() {
               ¿Ya tienes una cuenta?{" "}
               <Link
                 href="/authentication/login"
-                className="text-primary hover:text-primary/80 transition-colors hover:underline ml-1"
+                className="text-secondary hover:text-secondary dark:text-primary dark:hover:text-primary/80 transition-colors hover:underline ml-1"
               >
                 Inicia sesión
               </Link>

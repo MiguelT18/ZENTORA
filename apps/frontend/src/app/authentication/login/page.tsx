@@ -315,7 +315,7 @@ export default function LoginPage() {
                   type="email"
                   id="email-modal"
                   placeholder="Tu correo electrónico"
-                  className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                  className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
                 />
               </div>
               {errorsModal["email-modal"] && (
@@ -326,7 +326,7 @@ export default function LoginPage() {
             <div className="flex flex-col sm:flex-row-reverse gap-2 mt-4">
               <button
                 type="button"
-                className="w-full border border-light-bg-surface dark:border-dark-text-secondary/25 hover:border-secondary hover:bg-secondary/10 hover:text-secondary transition-colors text-light-text-primary dark:text-dark-text-primary py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="w-full border border-light-bg-surface dark:border-dark-text-secondary/25 hover:border-secondary hover:bg-secondary/10 hover:text-secondary dark:hover:border-primary dark:hover:bg-primary/10 dark:hover:text-primary transition-colors text-light-text-primary dark:text-dark-text-primary py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 onClick={handleCloseModal}
               >
                 Cancelar
@@ -334,7 +334,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="w-full bg-secondary hover:bg-secondary/80 transition-colors text-white py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="w-full bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors text-white py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 disabled={loading === "sendCode"}
               >
                 {loading === "sendCode" ? "Enviando..." : "Enviar código"}
@@ -348,8 +348,8 @@ export default function LoginPage() {
           className="w-full max-w-md m-auto bg-light-bg-secondary dark:bg-dark-bg-surface p-8 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface backdrop:backdrop-blur-sm max-sm:w-[90%] outline-none"
         >
           <div className="text-center">
-            <span className="block size-fit rounded-full bg-secondary/10 dark:bg-secondary-dark/10 p-3 mx-auto">
-              <GlobalIcons.AnimatedEmailIcon className="size-8 text-secondary dark:text-primary-dark mx-auto" />
+            <span className="block size-fit rounded-full bg-secondary/10 dark:bg-primary/10 p-3 mx-auto">
+              <GlobalIcons.AnimatedEmailIcon className="size-8 text-secondary dark:text-primary dark:text-primary-dark mx-auto" />
             </span>
 
             <div className="py-2 space-y-1">
@@ -386,7 +386,7 @@ export default function LoginPage() {
                     }
                     onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => handleKeyDown(index, e)}
                     onPaste={index === 0 ? handlePaste : undefined}
-                    className="w-9 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold border rounded-lg bg-light-bg dark:bg-dark-bg dark:text-dark-text-primary text-light-text-primary focus:border-secondary focus:ring-2 focus:ring-secondary/20 focus:outline-none transition-all duration-200 hover:border-secondary/50 border-light-bg-surface dark:border-dark-bg-surface"
+                    className="w-9 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold border rounded-lg bg-light-bg dark:bg-dark-bg dark:text-dark-text-primary text-light-text-primary focus:border-secondary dark:focus:border-primary focus:ring-2 focus:ring-secondary/20 dark:focus:ring-primary/20 focus:outline-none transition-all duration-200 hover:border-secondary/50 dark:hover:border-primary/50 border-light-bg-surface dark:border-dark-bg-surface"
                   />
                 ))}
             </div>
@@ -394,10 +394,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={handleResendCode}
-              className="bg-background dark:bg-background-dark transition-colors text-secondary dark:text-primary-dark px-4 py-2 rounded-md my-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-fit flex items-center border border-border dark:border-border-dark hover:bg-secondary/10 dark:hover:bg-secondary-dark/10 mx-auto"
+              className="bg-background dark:bg-background-dark transition-colors text-secondary dark:text-primary px-4 py-2 rounded-md my-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-fit flex items-center border border-border dark:border-border-dark hover:bg-secondary/10 dark:hover:bg-primary/10 mx-auto"
               disabled={loading === "resendCode"}
             >
-              <GlobalIcons.RestartIcon className="size-4 mr-2 text-secondary dark:text-primary-dark" />
+              <GlobalIcons.RestartIcon className="size-4 mr-2 text-secondary dark:text-primary" />
               {loading === "resendCode" ? "Reenviando..." : "Reenviar código"}
             </button>
 
@@ -429,8 +429,8 @@ export default function LoginPage() {
                     })}
                     type={showNewPassword ? "text" : "password"}
                     id="new-password"
-                    placeholder="Tu nueva contraseña"
-                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                    placeholder="••••••••"
+                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50 hover:border-secondary/50 dark:hover:border-primary/50 transition-colors"
                   />
                   <button
                     type="button"
@@ -472,8 +472,8 @@ export default function LoginPage() {
                     })}
                     type={showNewPasswordRepeat ? "text" : "password"}
                     id="new-password-repeat"
-                    placeholder="Tu nueva contraseña"
-                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                    placeholder="••••••••"
+                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50 hover:border-secondary/50 dark:hover:border-primary/50 transition-colors"
                   />
                   <button
                     type="button"
@@ -498,7 +498,7 @@ export default function LoginPage() {
             <div className="flex flex-col sm:flex-row-reverse gap-2 mt-4">
               <button
                 type="button"
-                className="w-full border border-light-bg-surface dark:border-dark-text-secondary/25 hover:border-secondary hover:bg-secondary/10 hover:text-secondary transition-colors text-light-text-primary dark:text-dark-text-primary py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="w-full border border-light-bg-surface dark:border-dark-text-secondary/25 hover:border-secondary hover:bg-secondary/10 hover:text-secondary dark:hover:border-primary dark:hover:bg-primary/10 dark:hover:text-primary transition-colors text-light-text-primary dark:text-dark-text-primary py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 onClick={handleCloseResetPasswordModal}
               >
                 Cancelar
@@ -507,7 +507,7 @@ export default function LoginPage() {
               <button
                 disabled={canResetPassword || loading === "resetPassword"}
                 type="submit"
-                className="w-full bg-secondary hover:bg-secondary/80 transition-colors text-white py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="w-full bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors text-white py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 {loading === "resetPassword" ? "Cambiando..." : "Cambiar contraseña"}
               </button>
@@ -599,7 +599,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/80 transition-colors text-white tracking-wider py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="w-full bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors text-white tracking-wider py-2 rounded-md mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 disabled={loading === "login"}
               >
                 {loading === "login" ? "Iniciando..." : "Iniciar Sesión"}
@@ -635,7 +635,7 @@ export default function LoginPage() {
               ¿No tienes una cuenta?{" "}
               <Link
                 href="/authentication/register"
-                className="text-primary hover:text-primary/80 transition-colors hover:underline ml-1"
+                className="text-secondary hover:text-secondary/80 dark:text-primary dark:hover:text-primary/80 transition-colors hover:underline ml-1"
               >
                 Regístrate
               </Link>
