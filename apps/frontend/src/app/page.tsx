@@ -1,19 +1,33 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useNotification } from "@/context/NotificationContext";
 import axios, { AxiosError } from "axios";
 import { useAuth } from "@/context/AuthContext";
 import Loading from "./loading";
+import Sidebar from "@/components/Sidebar";
+import MarketChart from "@/components/MarketChart";
+import AIChat from "@/components/AIChat";
 
 export default function Home() {
   const { addNotification } = useNotification();
-  const { login, user, isLoading, logout } = useAuth();
+  const { login, isLoading } = useAuth();
 
   const isProcessing = useRef(false);
 
   const [showLoading, setShowLoading] = useState(true);
+  const [mobileView, setMobileView] = useState<"chart" | "chat">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("mobileView");
+      if (saved === "chart" || saved === "chat") return saved;
+      else localStorage.setItem("mobileView", "chart");
+    }
+    return "chart";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("mobileView", mobileView);
+  }, [mobileView]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -76,37 +90,33 @@ export default function Home() {
   if (showLoading) return <Loading />;
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen text-center">
-      <h1 className="text-4xl uppercase font-bold">Sistema de Autenticación</h1>
-      <p className="text-md text-light-text-secondary dark:text-dark-text-secondary">
-        Bienvenido a nuestro sistema de login y registro
-      </p>
+    <main className="h-dvh grid grid-cols-1 lg:grid-cols-[minmax(auto,1fr)_minmax(auto,3fr)_minmax(auto,1.5fr)]">
+      <Sidebar />
+      <MarketChart view={mobileView} />
+      <AIChat view={mobileView} />
 
-      <div className="flex gap-4 items-center mt-4">
-        {!user ? (
-          <>
-            <Link
-              href="/authentication/login"
-              className="text-white bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors p-2 rounded-md text-sm tracking-wider"
-            >
-              Iniciar sesión
-            </Link>
-            <Link
-              href="/authentication/register"
-              className="border-light-bg-surface border p-2 rounded-md hover:bg-light-bg-surface transition-colors dark:border-dark-bg-surface dark:hover:bg-dark-bg-surface tracking-wider text-sm"
-            >
-              Registrarse
-            </Link>
-          </>
-        ) : (
-          <button
-            onClick={logout}
-            className="text-white bg-secondary hover:bg-secondary/80 dark:bg-primary dark:hover:bg-primary/80 transition-colors p-2 rounded-md text-sm tracking-wider cursor-pointer"
-          >
-            Cerrar sesión
-          </button>
-        )}
+      <div className="lg:hidden flex items-center fixed left-1/2 -translate-x-1/2 bottom-4 dark:bg-dark-bg-secondary/50 bg-light-bg-secondary p-0.5 dark:border-dark-bg-surface border-light-bg-surface border-1 backdrop-blur-sm rounded-full">
+        <button
+          onClick={() => setMobileView("chart")}
+          className={`px-4 py-2 rounded-full text-sm tracking-wider ${
+            mobileView === "chart"
+              ? "bg-secondary dark:bg-primary text-white shadow-lg"
+              : "text-theme-text-secondary hover:text-theme-text-primary"
+          }`}
+        >
+          Gráfico
+        </button>
+        <button
+          onClick={() => setMobileView("chat")}
+          className={`px-4 py-2 rounded-full text-sm tracking-wider ${
+            mobileView === "chat"
+              ? "bg-secondary dark:bg-primary text-white shadow-lg"
+              : "text-theme-text-secondary hover:text-theme-text-primary"
+          }`}
+        >
+          Chat
+        </button>
       </div>
-    </div>
+    </main>
   );
 }
