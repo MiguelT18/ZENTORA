@@ -51,7 +51,7 @@ ZENTORA/
    - pgAdmin: http://localhost:5050
      - Email: admin@zentora.com
      - Password: zentora
-   - RedisInsight: http://localhost:8001
+   - RedisInsight: http://localhost:5540
 
 ## 🗄️ Base de Datos
 
@@ -67,7 +67,7 @@ ZENTORA/
    - Password: zentora
 
 ### Configuración de RedisInsight
-1. Acceder a http://localhost:8001
+1. Acceder a http://localhost:5540
 2. Agregar nueva conexión Redis:
    - Host: redis
    - Port: 6379
