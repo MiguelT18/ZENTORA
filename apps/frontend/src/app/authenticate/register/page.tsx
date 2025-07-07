@@ -317,8 +317,13 @@ export default function RegisterPage() {
       <main className="flex flex-col items-center justify-center min-h-dvh max-sm:px-4">
         <UserControls />
 
-        <article className="w-full max-w-md bg-light-bg-secondary dark:bg-dark-bg-secondary p-8 max-sm:mt-4 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface">
+        <article className="w-full max-w-md bg-light-bg-secondary dark:bg-dark-bg-secondary p-8 max-sm:my-4 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface">
           <header className="mb-6 text-center space-y-1">
+            <div className="flex flex-col justify-center items-center gap-1 mb-4">
+              <GlobalIcons.LogoIcon className="text-black dark:text-white size-12 border-2 rounded-full" />
+              <span className="text-xs font-black uppercase">Zentora</span>
+            </div>
+
             <h1 className="text-xl font-bold">Crear Cuenta</h1>
             <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
               Completa los datos para crear tu nueva cuenta
@@ -334,7 +339,7 @@ export default function RegisterPage() {
                   </label>
                   <div className="flex flex-col gap-1">
                     <div className="relative">
-                      <AuthIcons.UserIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary dark:text-text-secondary-dark" />
+                      <AuthIcons.UserIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-light-text-secondary dark:text-dark-text-secondary" />
                       <input
                         {...register("name", {
                           required: {
@@ -354,7 +359,7 @@ export default function RegisterPage() {
                         type="text"
                         id="name"
                         placeholder="John"
-                        className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-primary focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                        className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50 hover:border-secondary/50 dark:hover:border-primary/50 transition-colors"
                       />
                     </div>
                     {errors.name && (
@@ -369,7 +374,7 @@ export default function RegisterPage() {
                   </label>
                   <div className="flex flex-col gap-1">
                     <div className="relative">
-                      <AuthIcons.UserIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary dark:text-text-secondary-dark" />
+                      <AuthIcons.UserIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-light-text-secondary dark:text-dark-text-secondary" />
                       <input
                         {...register("lastname", {
                           required: {
@@ -389,7 +394,7 @@ export default function RegisterPage() {
                         id="lastname"
                         autoComplete="off"
                         placeholder="Doe Smith"
-                        className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-primary focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                        className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50 hover:border-secondary/50 dark:hover:border-primary/50 transition-colors"
                       />
                     </div>
                     {errors.lastname && (
@@ -404,7 +409,7 @@ export default function RegisterPage() {
                   Correo electrónico
                 </label>
                 <div className="relative">
-                  <AuthIcons.MailIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary dark:text-text-secondary-dark" />
+                  <AuthIcons.MailIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-light-text-secondary dark:text-dark-text-secondary" />
                   <input
                     {...register("email", {
                       required: {
@@ -419,7 +424,7 @@ export default function RegisterPage() {
                     type="email"
                     id="email"
                     placeholder="john.doe@gmail.com"
-                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-primary focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50 hover:border-secondary/50 dark:hover:border-primary/50 transition-colors"
                   />
                 </div>
                 {errors.email && (
@@ -432,7 +437,7 @@ export default function RegisterPage() {
                   Contraseña
                 </label>
                 <div className="relative">
-                  <AuthIcons.LockIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary dark:text-text-secondary-dark" />
+                  <AuthIcons.LockIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-light-text-secondary dark:text-dark-text-secondary" />
                   <input
                     {...register("password", {
                       required: {
@@ -453,7 +458,7 @@ export default function RegisterPage() {
                     type={showPassword ? "text" : "password"}
                     id="password"
                     placeholder="••••••••"
-                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-primary focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50 hover:border-secondary/50 dark:hover:border-primary/50 transition-colors"
                   />
                   <button
                     type="button"
@@ -477,7 +482,7 @@ export default function RegisterPage() {
                   Confirmar contraseña
                 </label>
                 <div className="relative">
-                  <AuthIcons.LockIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary dark:text-text-secondary-dark" />
+                  <AuthIcons.LockIcon className="size-4 absolute left-2 top-1/2 -translate-y-1/2 text-light-text-secondary dark:text-dark-text-secondary" />
                   <input
                     {...register("confirmPassword", {
                       required: {
@@ -493,7 +498,7 @@ export default function RegisterPage() {
                     type={showConfirmPassword ? "text" : "password"}
                     id="confirm-password"
                     placeholder="••••••••"
-                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-primary focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50 hover:border-secondary/50 dark:hover:border-primary/50 transition-colors"
                   />
                   <button
                     type="button"

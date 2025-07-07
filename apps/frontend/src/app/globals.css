@@ -75,3 +75,55 @@ input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 30px var(--color-dark-bg) inset !important;
   -webkit-text-fill-color: var(--color-dark-text-primary) !important;
 }
+
+/* Estilos para la barra de scroll - Tema claro */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-light-bg-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-light-text-muted);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-light-text-secondary);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--color-light-bg-secondary);
+}
+
+/* Estilos para la barra de scroll - Tema oscuro */
+.dark ::-webkit-scrollbar-track {
+  background: var(--color-dark-bg-secondary);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-dark-text-muted);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-dark-text-secondary);
+}
+
+.dark ::-webkit-scrollbar-corner {
+  background: var(--color-dark-bg-secondary);
+}
+
+/* Estilos para Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-light-text-muted) var(--color-light-bg-secondary);
+}
+
+.dark * {
+  scrollbar-color: var(--color-dark-text-muted) var(--color-dark-bg-secondary);
+}

@@ -349,6 +349,7 @@ async def login(
         "full_name": str(user.full_name),
         "role": str(user.role),
         "status": user.status,
+        "avatar_url": user.avatar_url or "",
         "created_at": datetime.now(UTC).isoformat(),
     }
 
@@ -367,6 +368,7 @@ async def login(
             "is_verified": user.is_verified,
             "status": user.status,
             "provider": user.provider,
+            "avatar_url": user.avatar_url,  # Incluir avatar_url en la respuesta
             "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
         },
     }
@@ -483,6 +485,7 @@ async def refresh_token(
         "full_name": user_data["full_name"],
         "role": user_data["role"],
         "status": user_data["status"],
+        "avatar_url": user_data.get("avatar_url", ""),
         "created_at": datetime.now(UTC).isoformat(),
     }
 
@@ -526,6 +529,7 @@ async def refresh_token(
             "full_name": user_data["full_name"],
             "role": user_data["role"],
             "status": user_data["status"],
+            "avatar_url": user_data.get("avatar_url", ""),  # Incluir avatar_url en la respuesta
         },
     }
 
@@ -1150,6 +1154,7 @@ async def exchange_temp_code(
             "full_name": auth_data["full_name"],
             "role": auth_data["role"],
             "status": UserStatus.ACTIVE.value,  # Usar el valor del enum
+            "avatar_url": auth_data.get("avatar_url", ""),  # Incluir avatar_url
             "created_at": datetime.now(UTC).isoformat(),
         }
 

@@ -90,29 +90,32 @@ export default function Home() {
   if (showLoading) return <Loading />;
 
   return (
-    <main className="h-dvh grid grid-cols-1 lg:grid-cols-[minmax(auto,1fr)_minmax(auto,3fr)_minmax(auto,1.5fr)]">
+    <main className="h-dvh grid grid-cols-1 lg:grid-cols-[minmax(0.8,auto)_minmax(auto,3fr)_minmax(350px,1.25fr)]">
       <Sidebar />
       <MarketChart view={mobileView} />
       <AIChat view={mobileView} />
 
-      <div className="lg:hidden flex items-center fixed left-1/2 -translate-x-1/2 bottom-4 dark:bg-dark-bg-secondary/50 bg-light-bg-secondary p-0.5 dark:border-dark-bg-surface border-light-bg-surface border-1 backdrop-blur-sm rounded-full">
+      <div className="lg:hidden flex items-center fixed left-1/2 -translate-x-1/2 bottom-4 dark:bg-dark-bg-surface/50 bg-light-bg-surface p-0.5 dark:border-dark-bg-surface border-light-bg-surface border-1 backdrop-blur-sm rounded-full">
         <button
           onClick={() => setMobileView("chart")}
-          className={`px-4 py-2 rounded-full text-sm tracking-wider ${
-            mobileView === "chart"
-              ? "bg-secondary dark:bg-primary text-white shadow-lg"
-              : "text-theme-text-secondary hover:text-theme-text-primary"
-          }`}
+          className={`px-4 py-2 rounded-full text-sm tracking-wider transition-all duration-300 ease-in-out transform
+    ${
+      mobileView === "chart"
+        ? "bg-secondary dark:bg-primary text-white shadow-lg scale-105"
+        : "text-theme-text-secondary hover:text-theme-text-primary scale-100"
+    }`}
         >
           Gráfico
         </button>
+
         <button
           onClick={() => setMobileView("chat")}
-          className={`px-4 py-2 rounded-full text-sm tracking-wider ${
-            mobileView === "chat"
-              ? "bg-secondary dark:bg-primary text-white shadow-lg"
-              : "text-theme-text-secondary hover:text-theme-text-primary"
-          }`}
+          className={`px-4 py-2 rounded-full text-sm tracking-wider transition-all duration-300 ease-in-out transform
+    ${
+      mobileView === "chat"
+        ? "bg-secondary dark:bg-primary text-white shadow-lg scale-105"
+        : "text-theme-text-secondary hover:text-theme-text-primary scale-100"
+    }`}
         >
           Chat
         </button>

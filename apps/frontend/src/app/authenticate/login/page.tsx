@@ -515,8 +515,13 @@ export default function LoginPage() {
           </form>
         </dialog>
 
-        <article className="w-full max-w-md bg-light-bg-secondary dark:bg-dark-bg-secondary p-8 max-sm:mt-4 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface">
+        <article className="w-full max-w-md bg-light-bg-secondary dark:bg-dark-bg-secondary p-8 max-sm:my-4 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface">
           <header className="mb-4 text-center space-y-1">
+            <div className="flex flex-col justify-center items-center gap-1 mb-4">
+              <GlobalIcons.LogoIcon className="text-black dark:text-white size-12 border-2 rounded-full" />
+              <span className="text-xs font-black uppercase">Zentora</span>
+            </div>
+
             <h1 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">
               Iniciar Sesión
             </h1>
@@ -548,7 +553,7 @@ export default function LoginPage() {
                     id="email"
                     placeholder="john.doe@gmail.com"
                     disabled={false}
-                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-primary focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50 hover:border-secondary/50 dark:hover:border-primary/50 transition-colors"
                   />
                 </div>
                 {errors.email && <p className="text-error text-xs mt-2">{errors.email.message}</p>}
@@ -570,7 +575,7 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     id="password"
                     placeholder="••••••••"
-                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-primary focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50"
+                    className="flex w-full rounded-md border px-3 py-2 text-sm ring-offset-light-bg dark:ring-offset-dark-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed pl-8 border-light-bg-surface dark:border-dark-bg-surface bg-light-bg dark:bg-dark-bg placeholder:text-light-text-muted dark:placeholder:text-dark-text-muted focus:ring-secondary focus:border-secondary dark:focus:ring-primary dark:focus:border-primary text-light-text-primary dark:text-dark-text-primary disabled:opacity-50 hover:border-secondary/50 dark:hover:border-primary/50 transition-colors"
                   />
                   <button
                     type="button"

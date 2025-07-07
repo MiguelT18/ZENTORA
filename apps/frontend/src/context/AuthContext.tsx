@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setUser(null);
       // Las cookies httpOnly se eliminan desde el backend
-      router.push("/authentication/login");
+      router.push("/authenticate/login");
     }
   }, [router]);
 
