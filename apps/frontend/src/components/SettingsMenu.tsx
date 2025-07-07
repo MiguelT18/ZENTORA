@@ -38,7 +38,7 @@ export default function SettingsMenu({ onClose }: SettingsModalProps) {
         <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-4">
             <MainIcons.SettingsIcon className="text-white bg-secondary dark:bg-primary size-10 p-2 rounded-md" />
-            <div className="space-y-1">
+            <div>
               <h1 className="block text-lg text-light-text-primary dark:text-dark-text-primary font-bold">
                 Configuración
               </h1>
@@ -82,18 +82,19 @@ export default function SettingsMenu({ onClose }: SettingsModalProps) {
         </aside>
 
         <section className="pr-4">
-          <SectionComponent />
+          <SectionComponent onClose={onClose} />
         </section>
       </main>
 
       <footer className="px-4 pt-4 flex items-center justify-end gap-4">
         <button
           onClick={onClose}
-          className="text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-bg-surface dark:hover:bg-dark-bg-surface transition-colors p-2 text-sm rounded-md cursor-pointer tracking-wide"
+          className="text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-bg-surface dark:hover:bg-dark-bg-surface transition-colors py-2 px-4 text-sm rounded-md cursor-pointer tracking-wide"
         >
           Cancelar
         </button>
-        <button className="text-white bg-secondary dark:bg-primary hover:bg-secondary/80 dark:hover:bg-primary/80 transition-colors tracking-wide p-2 rounded-md text-sm cursor-pointer">
+        <button className="text-white bg-secondary dark:bg-primary hover:bg-secondary/80 dark:hover:bg-primary/80 transition-colors tracking-wide py-2 px-4 rounded-md text-sm cursor-pointer flex items-center gap-2">
+          <MainIcons.SaveIcon className="size-5" />
           Guardar Cambios
         </button>
       </footer>

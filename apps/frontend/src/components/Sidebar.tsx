@@ -259,7 +259,7 @@ export default function Sidebar() {
                     <MainIcons.MoreVerticalIcon className="size-4" />
                   </button>
 
-                  <AnimatedDropdown isOpen={moreMenu}>
+                  <AnimatedDropdown isOpen={moreMenu} position="right">
                     <button
                       onClick={handleDeleteAllChats}
                       type="button"
@@ -332,7 +332,7 @@ export default function Sidebar() {
                         <MainIcons.MoreVerticalIcon className="size-4 rotate-90" />
                       </button>
 
-                      <AnimatedDropdown isOpen={openChatOptions === chat.id}>
+                      <AnimatedDropdown isOpen={openChatOptions === chat.id} position="right">
                         <button
                           onClick={() => handleRenameChat(chat.id)}
                           type="button"
@@ -390,7 +390,9 @@ export default function Sidebar() {
               Configuración
             </button>
 
-            <ProPlanTag />
+            <div className="p-2">
+              <ProPlanTag />
+            </div>
           </div>
         )}
       </footer>

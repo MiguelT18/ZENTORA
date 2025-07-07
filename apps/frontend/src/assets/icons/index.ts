@@ -29,6 +29,9 @@ import ColorsIcon from "@/assets/icons/main/ColorsIcon";
 import SystemIcon from "@/assets/icons/theme/SystemIcon";
 import UserCheckIcon from "@/assets/icons/main/UserCheckIcon";
 import LogoutIcon from "@/assets/icons/auth/LogoutIcon";
+import SaveIcon from "@/assets/icons/main/SaveIcon";
+import TriangleArrowIcon from "@/assets/icons/global/TriangleArrowIcon";
+import AlertIcon from "@/assets/icons/main/AlertIcon";
 
 export const ThemeIcons = {
   SunIcon,
@@ -56,6 +59,7 @@ export const GlobalIcons = {
   ProTagIcon,
   FreeTagIcon,
   ExitIcon,
+  TriangleArrowIcon,
 };
 
 export const MainIcons = {
@@ -71,4 +75,6 @@ export const MainIcons = {
   ShieldIcon,
   ColorsIcon,
   UserCheckIcon,
+  SaveIcon,
+  AlertIcon,
 };

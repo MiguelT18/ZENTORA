@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { User } from "@/utils/types";
+import { useNotification } from "@/context/NotificationContext";
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +24,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [delayedLoading, setDelayedLoading] = useState(true);
+
+  const { addNotification } = useNotification();
 
   const router = useRouter();
 
@@ -72,7 +75,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = useCallback(async () => {
     try {
-      await axios.post("/api/v1/auth/logout");
+      const res = await axios.post("/api/v1/auth/logout");
+      addNotification("success", res.data.message);
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
     } finally {
@@ -80,7 +84,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Las cookies httpOnly se eliminan desde el backend
       router.push("/authenticate/login");
     }
-  }, [router]);
+  }, [router, addNotification]);
 
   useEffect(() => {
     const refreshTokensPeriodically = () => {
