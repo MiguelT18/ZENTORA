@@ -1,6 +1,7 @@
 import { AuthIcons, GlobalIcons, MainIcons, ThemeIcons } from "@/assets/icons";
 import { AnimatedDropdown } from "@/components/Dropdown";
 import { ProPlanTag } from "@/components/PlanTag";
+import SwitchButton from "@/components/SwitchButton";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import Link from "next/link";
@@ -94,17 +95,10 @@ export function GeneralSection() {
             </span>
           </div>
 
-          <button
-            onClick={() => setEmailNotifications(!emailNotifications)}
-            type="button"
-            className={`cursor-pointer relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ring-0 border border-light-bg-secondary dark:border-dark-bg-secondary bg-light-bg dark:bg-dark-bg`}
-          >
-            <span
-              className={`inline-block size-4 transform rounded-full bg-light-text-primary dark:bg-dark-text-primary transition-transform ${
-                emailNotifications ? "translate-x-6" : "translate-x-0.5"
-              }`}
-            />
-          </button>
+          <SwitchButton
+            checked={emailNotifications}
+            onChange={() => setEmailNotifications(!emailNotifications)}
+          />
         </div>
       </div>
     </div>
