@@ -57,16 +57,36 @@ export default function RegisterPage() {
     mode: "onChange",
   });
 
-  const handleGithubLogin = () => {
-    axios.get("/api/v1/auth/github/login").then((res) => {
+  const handleGithubLogin = async () => {
+    try {
+      const res = await axios.get("/api/v1/auth/github/login");
       window.location.href = res.data.authorization_url;
-    });
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        addNotification(
+          "error",
+          e.response?.data?.detail || "Error al iniciar la autenticación con GitHub"
+        );
+      } else {
+        addNotification("error", "Error inesperado al iniciar la autenticación con GitHub");
+      }
+    }
   };
 
-  const handleGoogleLogin = () => {
-    axios.get("/api/v1/auth/google/login").then((res) => {
+  const handleGoogleLogin = async () => {
+    try {
+      const res = await axios.get("/api/v1/auth/google/login");
       window.location.href = res.data.authorization_url;
-    });
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        addNotification(
+          "error",
+          e.response?.data?.detail || "Error al iniciar la autenticación con Google"
+        );
+      } else {
+        addNotification("error", "Error inesperado al iniciar la autenticación con Google");
+      }
+    }
   };
 
   const handleChange = (index: number, value: string) => {
@@ -315,7 +335,7 @@ export default function RegisterPage() {
       </dialog>
 
       <main className="flex flex-col items-center justify-center min-h-dvh max-sm:px-4">
-        <UserControls />
+        <UserControls isDisengaged={true} />
 
         <article className="w-full max-w-md bg-light-bg-secondary dark:bg-dark-bg-secondary p-8 max-sm:my-4 max-sm:p-4 rounded-lg shadow-md border border-light-bg-surface dark:border-dark-bg-surface">
           <header className="mb-6 text-center space-y-1">

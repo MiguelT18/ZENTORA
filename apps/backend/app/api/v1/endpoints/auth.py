@@ -1396,6 +1396,20 @@ async def github_callback(
 
     except HTTPException as http_error:
         raise http_error
+    except httpx.ConnectError as e:
+        logger.error(f"Error de conexión en el callback de GitHub: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500,
+            detail="Error de conexión durante la autenticación con GitHub. Verifica tu conexión a internet y los servicios DNS.",
+        )
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout en el callback de GitHub: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500,
+            detail="Timeout durante la autenticación con GitHub. El servicio puede estar temporalmente no disponible.",
+        )
     except Exception as e:
         logger.error(f"Error inesperado en el callback de GitHub: {str(e)}")
         logger.exception("Stacktrace completo:")
@@ -1669,6 +1683,20 @@ async def google_callback(
 
     except HTTPException as http_error:
         raise http_error
+    except httpx.ConnectError as e:
+        logger.error(f"Error de conexión en el callback de Google: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500,
+            detail="Error de conexión durante la autenticación con Google. Verifica tu conexión a internet y los servicios DNS.",
+        )
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout en el callback de Google: {str(e)}")
+        logger.exception("Stacktrace completo:")
+        raise HTTPException(
+            status_code=500,
+            detail="Timeout durante la autenticación con Google. El servicio puede estar temporalmente no disponible.",
+        )
     except Exception as e:
         logger.error(f"Error inesperado en el callback de Google: {str(e)}")
         logger.exception("Stacktrace completo:")

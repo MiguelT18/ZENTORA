@@ -33,6 +33,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       setNotifications((prev) => [...prev, notification]);
 
+      // Log para debugging
+      console.log(`[Notification] ${type.toUpperCase()}: ${message}`);
+
       if (duration > 0) {
         setTimeout(() => {
           removeNotification(id);

@@ -42,6 +42,12 @@ help: ## Mostrar este mensaje de ayuda
 	@echo "  make $(CYAN)install-frontend$(RESET)    Instalar dependencias del frontend"
 	@echo "  make $(CYAN)install-backend$(RESET)     Instalar dependencias del backend"
 	@echo ""
+	@echo "$(BOLD)$(YELLOW)Diagnóstico:$(RESET)"
+	@echo "  make $(CYAN)check-connectivity$(RESET)  Verificar conectividad de servicios externos"
+	@echo "  make $(CYAN)check-dns$(RESET)           Verificar resolución DNS desde contenedores"
+	@echo "  make $(CYAN)check-network$(RESET)       Diagnóstico completo de red"
+	@echo "  make $(CYAN)fix-dns$(RESET)             Configurar DNS para WSL2"
+	@echo ""
 	@echo "$(BOLD)$(GREEN)Para más detalles sobre un comando, ejecuta: make <comando> --help$(RESET)"
 
 setup: ## Configurar el proyecto por primera vez
@@ -100,3 +106,15 @@ install-frontend: ## Instalar dependencias del frontend
 
 install-backend: ## Instalar dependencias del backend
 	cd apps/backend && poetry install
+
+check-connectivity: ## Verificar conectividad de servicios externos
+	@./scripts/check_connectivity.sh
+
+check-dns: ## Verificar resolución DNS desde contenedores
+	@./scripts/check_container_network.sh
+
+check-network: ## Diagnóstico completo de red
+	@./scripts/diagnose_network.sh
+
+fix-dns: ## Configurar DNS para WSL2
+	@./scripts/fix_wsl_dns.sh

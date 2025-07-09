@@ -85,16 +85,36 @@ export default function LoginPage() {
     }
   };
 
-  const handleGithubLogin = () => {
-    axios.get("/api/v1/auth/github/login").then((res) => {
+  const handleGithubLogin = async () => {
+    try {
+      const res = await axios.get("/api/v1/auth/github/login");
       window.location.href = res.data.authorization_url;
-    });
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        addNotification(
+          "error",
+          e.response?.data?.detail || "Error al iniciar la autenticación con GitHub"
+        );
+      } else {
+        addNotification("error", "Error inesperado al iniciar la autenticación con GitHub");
+      }
+    }
   };
 
-  const handleGoogleLogin = () => {
-    axios.get("/api/v1/auth/google/login").then((res) => {
+  const handleGoogleLogin = async () => {
+    try {
+      const res = await axios.get("/api/v1/auth/google/login");
       window.location.href = res.data.authorization_url;
-    });
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        addNotification(
+          "error",
+          e.response?.data?.detail || "Error al iniciar la autenticación con Google"
+        );
+      } else {
+        addNotification("error", "Error inesperado al iniciar la autenticación con Google");
+      }
+    }
   };
 
   const handleOpenModal = () => {
@@ -275,7 +295,7 @@ export default function LoginPage() {
 
   return (
     <PublicRoute>
-      <UserControls />
+      <UserControls isDisengaged={true} />
       <main className="flex flex-col items-center justify-center min-h-dvh max-sm:px-4">
         <dialog
           closedby="any"

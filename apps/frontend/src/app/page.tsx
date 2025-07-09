@@ -71,10 +71,22 @@ export default function Home() {
           addNotification("success", res.data.message);
         } catch (e) {
           const error = e as AxiosError<{ detail: string }>;
-          addNotification(
-            "error",
-            error.response?.data.detail || "Ha ocurrido un error al iniciar sesión"
-          );
+          const errorMessage =
+            error.response?.data?.detail || "Ha ocurrido un error al iniciar sesión";
+
+          // Manejar errores específicos de DNS/conectividad
+          if (
+            errorMessage.includes("DNS") ||
+            errorMessage.includes("conexión") ||
+            errorMessage.includes("name resolution")
+          ) {
+            addNotification(
+              "error",
+              "Error de conectividad. Verifica tu conexión a internet y que los servicios DNS estén funcionando correctamente."
+            );
+          } else {
+            addNotification("error", errorMessage);
+          }
         } finally {
           // Elimina el temp_code de la URL después de usarlo, exitoso o no
           searchParams.delete("temp_code");

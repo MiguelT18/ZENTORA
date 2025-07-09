@@ -32,6 +32,8 @@ import LogoutIcon from "@/assets/icons/auth/LogoutIcon";
 import SaveIcon from "@/assets/icons/main/SaveIcon";
 import TriangleArrowIcon from "@/assets/icons/global/TriangleArrowIcon";
 import AlertIcon from "@/assets/icons/main/AlertIcon";
+import CheckIcon from "@/assets/icons/global/CheckIcon";
+import TimerIcon from "@/assets/icons/global/TimerIcon";
 
 export const ThemeIcons = {
   SunIcon,
@@ -60,6 +62,8 @@ export const GlobalIcons = {
   FreeTagIcon,
   ExitIcon,
   TriangleArrowIcon,
+  CheckIcon,
+  TimerIcon,
 };
 
 export const MainIcons = {
