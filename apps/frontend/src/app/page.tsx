@@ -5,9 +5,9 @@ import { useNotification } from "@/context/NotificationContext";
 import axios, { AxiosError } from "axios";
 import { useAuth } from "@/context/AuthContext";
 import Loading from "./loading";
-import Sidebar from "@/components/Sidebar";
-import MarketChart from "@/components/MarketChart";
-import AIChat from "@/components/AIChat";
+import Sidebar from "@/components/Layouts/Sidebar";
+import MarketChart from "@/components/Layouts/MarketChart";
+import AIChat from "@/components/Layouts/AIChat";
 
 export default function Home() {
   const { addNotification } = useNotification();

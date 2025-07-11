@@ -14,7 +14,7 @@ import {
 import { useForm } from "react-hook-form";
 import axios, { AxiosError } from "axios";
 import { useNotification } from "@/context/NotificationContext";
-import { UserControls } from "@/components/UserControls";
+import { UserControls } from "@/components/UI/UserControls";
 import ModalNotification from "@/components/Notification/ModalNotification";
 import { PublicRoute } from "@/components/PublicRoute";
 

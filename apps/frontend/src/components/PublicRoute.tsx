@@ -1,4 +1,5 @@
 "use client";
+import Loading from "@/app/loading";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -13,7 +14,7 @@ export function PublicRoute({ children }: { children: React.ReactNode }) {
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) return <div>Cargando...</div>;
+  if (isLoading) return <Loading />;
   if (user) return null;
   return <>{children}</>;
 }
@@ -28,7 +29,7 @@ export function PrivateRoute({ children }: { children: React.ReactNode }) {
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) return <div>Cargando...</div>;
+  if (isLoading) return <Loading />;
   if (!user) return null;
   return <>{children}</>;
 }

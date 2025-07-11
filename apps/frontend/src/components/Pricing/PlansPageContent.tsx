@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSubscription } from "./subscriptionContext";
 import ProgressBar from "./ProgressBar";
 import { GlobalIcons } from "@/assets/icons";
-import { UserControls } from "@/components/UserControls";
+import { UserControls } from "@/components/UI/UserControls";
 
 const plans = [
   { key: "monthly", label: "Mensual" },

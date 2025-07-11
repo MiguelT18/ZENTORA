@@ -1,13 +1,13 @@
 import { GlobalIcons } from "@/assets/icons";
 import { MainIcons } from "@/assets/icons";
-import { AnimatedDropdown } from "@/components/Dropdown";
-import { ProPlanTag } from "@/components/PlanTag";
+import { AnimatedDropdown } from "@/components/UI/Dropdown";
+import { ProPlanTag } from "@/components/UI/PlanTag";
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import Modal from "@/components/Modal";
-import SettingsMenu from "@/components/SettingsMenu";
+import Modal from "@/components/UI/Modal";
+import SettingsMenu from "@/components/UserSettings/SettingsMenu";
 
 // Interfaz para el tipo de chat
 interface Chat {
@@ -26,6 +26,12 @@ export default function Sidebar() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const chatOptionsRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // Función para obtener la referencia de un chat específico
+  const getChatOptionsRef = (chatId: string) => ({
+    current: chatOptionsRefs.current[chatId] || null,
+  });
 
   const handleOpenMoreMenu = () => {
     setMoreMenu(!moreMenu);
@@ -259,7 +265,7 @@ export default function Sidebar() {
                     <MainIcons.MoreVerticalIcon className="size-4" />
                   </button>
 
-                  <AnimatedDropdown isOpen={moreMenu} position="right">
+                  <AnimatedDropdown isOpen={moreMenu} position="left" triggerRef={moreMenuRef}>
                     <button
                       onClick={handleDeleteAllChats}
                       type="button"
@@ -323,7 +329,12 @@ export default function Sidebar() {
                       )}
                     </div>
 
-                    <div className="relative h-fit opacity-0 group-hover:opacity-100 transition-opacity chat-options-container">
+                    <div
+                      className="relative h-fit opacity-0 group-hover:opacity-100 transition-opacity chat-options-container"
+                      ref={(el) => {
+                        chatOptionsRefs.current[chat.id] = el;
+                      }}
+                    >
                       <button
                         onClick={() => handleOpenChatOptions(chat.id)}
                         type="button"
@@ -332,7 +343,11 @@ export default function Sidebar() {
                         <MainIcons.MoreVerticalIcon className="size-4 rotate-90" />
                       </button>
 
-                      <AnimatedDropdown isOpen={openChatOptions === chat.id} position="right">
+                      <AnimatedDropdown
+                        isOpen={openChatOptions === chat.id}
+                        position="left"
+                        triggerRef={getChatOptionsRef(chat.id)}
+                      >
                         <button
                           onClick={() => handleRenameChat(chat.id)}
                           type="button"

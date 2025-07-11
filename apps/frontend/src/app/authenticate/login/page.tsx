@@ -6,7 +6,7 @@ import { ChangeEvent, ClipboardEvent, KeyboardEvent, useEffect, useRef, useState
 import { useForm } from "react-hook-form";
 import axios from "axios";
 import { useNotification } from "@/context/NotificationContext";
-import { UserControls } from "@/components/UserControls";
+import { UserControls } from "@/components/UI/UserControls";
 import { PublicRoute } from "@/components/PublicRoute";
 import ModalNotification from "@/components/Notification/ModalNotification";
 import type { ModalNotification as ModalNotificationType } from "@/utils/types";

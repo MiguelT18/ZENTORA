@@ -1,5 +1,5 @@
 import { AuthIcons, MainIcons } from "@/assets/icons";
-import { ProPlanTag } from "@/components/PlanTag";
+import { ProPlanTag } from "@/components/UI/PlanTag";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { useEffect, useState } from "react";

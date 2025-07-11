@@ -1,6 +1,6 @@
 import { GlobalIcons, MainIcons } from "@/assets/icons";
-import { AnimatedDropdown } from "@/components/Dropdown";
-import SwitchButton from "@/components/SwitchButton";
+import { AnimatedDropdown } from "@/components/UI/Dropdown";
+import SwitchButton from "@/components/UI/SwitchButton";
 import { useEffect, useRef, useState } from "react";
 
 export function GeneralSection() {
@@ -56,7 +56,12 @@ export function GeneralSection() {
         </div>
       </div>
 
-      <AnimatedDropdown isOpen={languageMenu} position="custom" customClassName="flex flex-col">
+      <AnimatedDropdown
+        isOpen={languageMenu}
+        position="custom"
+        customClassName="flex flex-col"
+        triggerRef={selectMenuRef}
+      >
         {languages.map((lang) => (
           <button
             key={lang.key}
