@@ -34,6 +34,10 @@ import TriangleArrowIcon from "@/assets/icons/global/TriangleArrowIcon";
 import AlertIcon from "@/assets/icons/main/AlertIcon";
 import CheckIcon from "@/assets/icons/global/CheckIcon";
 import TimerIcon from "@/assets/icons/global/TimerIcon";
+import InfoIcon from "@/assets/icons/global/InfoIcon";
+import ClockIcon from "@/assets/icons/global/ClockIcon";
+import InfiniteIcon from "@/assets/icons/global/InfiniteIcon";
+import RocketIcon from "@/assets/icons/global/RocketIcon";
 
 export const ThemeIcons = {
   SunIcon,
@@ -64,6 +68,10 @@ export const GlobalIcons = {
   TriangleArrowIcon,
   CheckIcon,
   TimerIcon,
+  InfoIcon,
+  ClockIcon,
+  InfiniteIcon,
+  RocketIcon,
 };
 
 export const MainIcons = {
