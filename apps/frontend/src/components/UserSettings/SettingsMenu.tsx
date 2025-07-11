@@ -1,11 +1,6 @@
 import { useState } from "react";
 import { GlobalIcons, MainIcons, AuthIcons } from "@/assets/icons";
-import {
-  GeneralSection,
-  SecuritySection,
-  AccountSection,
-  CustomizationSection,
-} from "@/components/UserSettings/Content";
+import { GeneralSection, SecuritySection, AccountSection, CustomizationSection } from "./Content";
 
 interface SettingsModalProps {
   onClose: () => void;
