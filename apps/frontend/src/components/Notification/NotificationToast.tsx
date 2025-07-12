@@ -11,10 +11,10 @@ interface NotificationToastProps {
 }
 
 const toastTypeStyles = {
-  success: "bg-success/20 border-success/50 text-success",
-  error: "bg-error/20 border-error/50 text-error",
-  warning: "bg-warning/20 border-warning/50 text-warning",
-  info: "bg-info/20 border-info/50 text-info",
+  success: "bg-success/30 border-success/60 text-success",
+  error: "bg-error/30 border-error/60 text-error",
+  warning: "bg-warning/30 border-warning/60 text-warning",
+  info: "bg-info/30 border-info/60 text-info",
 };
 
 export function NotificationToast({ id, type, message, onRemove }: NotificationToastProps) {
@@ -34,13 +34,6 @@ export function NotificationToast({ id, type, message, onRemove }: NotificationT
       className={`flex items-center justify-between gap-2 px-4 py-2 rounded-lg border ${toastTypeStyles[type]} shadow-lg w-full max-w-xs sm:max-w-md break-words backdrop-blur-sm`}
       style={{ wordBreak: "break-word" }}
     >
-      <span
-        className="text-sm font-medium break-words whitespace-pre-line max-w-[70vw] sm:max-w-xs"
-        style={{ wordBreak: "break-word" }}
-      >
-        {message}
-      </span>
-
       <button
         onClick={() => onRemove(id)}
         className="ml-auto hover:opacity-70 transition-opacity cursor-pointer"
@@ -60,6 +53,13 @@ export function NotificationToast({ id, type, message, onRemove }: NotificationT
           />
         </svg>
       </button>
+
+      <span
+        className="text-sm font-medium break-words whitespace-pre-line max-w-[70vw] sm:max-w-xs"
+        style={{ wordBreak: "break-word" }}
+      >
+        {message}
+      </span>
     </motion.div>
   );
 }

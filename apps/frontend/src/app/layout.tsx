@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { NotificationContainer } from "@/components/Notification/NotificationContainer";
 import { AuthProvider } from "@/context/AuthContext";
+import { ChatProvider } from "@/context/ChatContext";
 
 export const metadata: Metadata = {
   title: "Bienvenido a Zentora",
@@ -20,10 +21,12 @@ export default function RootLayout({
       <body className="antialiased bg-light-bg text-text-primary dark:bg-dark-bg dark:text-dark-text-primary">
         <NotificationProvider>
           <AuthProvider>
-            <ThemeProvider>
-              <NotificationContainer />
-              {children}
-            </ThemeProvider>
+            <ChatProvider>
+              <ThemeProvider>
+                <NotificationContainer />
+                {children}
+              </ThemeProvider>
+            </ChatProvider>
           </AuthProvider>
         </NotificationProvider>
       </body>

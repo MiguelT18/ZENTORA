@@ -3,23 +3,27 @@ import { MainIcons } from "@/assets/icons";
 import { AnimatedDropdown } from "@/components/UI/Dropdown";
 import { ProPlanTag } from "@/components/UI/PlanTag";
 import { useAuth } from "@/context/AuthContext";
+import { useChat } from "@/context/ChatContext";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import Modal from "@/components/UI/Modal";
 import SettingsMenu from "@/components/UserSettings/SettingsMenu";
 
-// Interfaz para el tipo de chat
-interface Chat {
-  id: string;
-  title: string;
-}
-
 export default function Sidebar() {
   const { user } = useAuth();
+  const {
+    chats,
+    currentChatId,
+    createNewChat,
+    deleteChat,
+    deleteAllChats,
+    renameChat,
+    setCurrentChat,
+  } = useChat();
+
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [moreMenu, setMoreMenu] = useState(false);
-  const [chats, setChats] = useState<Chat[]>([]);
   const [openChatOptions, setOpenChatOptions] = useState<string | null>(null);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -41,41 +45,9 @@ export default function Sidebar() {
     setOpenChatOptions(openChatOptions === chatId ? null : chatId);
   };
 
-  const handleCreateNewChat = () => {
-    const baseTitle = "Nueva conversación";
-
-    // Verificar si ya existe "Nueva conversación" sin número
-    const hasBaseTitle = chats.some((chat) => chat.title === baseTitle);
-
-    let title: string;
-    if (!hasBaseTitle) {
-      // Si no existe, usar el título base sin número
-      title = baseTitle;
-    } else {
-      // Si existe, encontrar el siguiente número disponible
-      let nextNumber = 1;
-      while (chats.some((chat) => chat.title === `${baseTitle} (${nextNumber})`)) {
-        nextNumber++;
-      }
-      title = `${baseTitle} (${nextNumber})`;
-    }
-
-    const newChat: Chat = {
-      id: Date.now().toString(),
-      title: title,
-    };
-
-    setChats((prevChats) => [...prevChats, newChat]);
-  };
-
   const handleDeleteChat = (chatId: string) => {
-    setChats((prevChats) => prevChats.filter((chat) => chat.id !== chatId));
+    deleteChat(chatId);
     setOpenChatOptions(null);
-  };
-
-  const handleDeleteAllChats = () => {
-    setChats([]);
-    setMoreMenu(false);
   };
 
   const handleRenameChat = (chatId: string) => {
@@ -89,11 +61,7 @@ export default function Sidebar() {
 
   const handleSaveTitle = (chatId: string) => {
     if (editingTitle.trim()) {
-      setChats((prevChats) =>
-        prevChats.map((chat) =>
-          chat.id === chatId ? { ...chat, title: editingTitle.trim() } : chat
-        )
-      );
+      renameChat(chatId, editingTitle.trim());
     }
     setEditingChatId(null);
     setEditingTitle("");
@@ -110,6 +78,10 @@ export default function Sidebar() {
 
   const handleCloseSettings = () => {
     setIsSettingsModalOpen(false);
+  };
+
+  const handleChatClick = (chatId: string) => {
+    setCurrentChat(chatId);
   };
 
   useEffect(() => {
@@ -245,7 +217,7 @@ export default function Sidebar() {
               <div className="flex items-center">
                 <button
                   type="button"
-                  onClick={handleCreateNewChat}
+                  onClick={createNewChat}
                   className="cursor-pointer p-2 rounded-md transition-colors hover:text-light-text-secondary dark:hover:text-dark-text-secondary hover:bg-light-bg-surface dark:hover:bg-dark-bg-surface"
                   title="Crear nueva conversación"
                 >
@@ -267,7 +239,7 @@ export default function Sidebar() {
 
                   <AnimatedDropdown isOpen={moreMenu} position="left" triggerRef={moreMenuRef}>
                     <button
-                      onClick={handleDeleteAllChats}
+                      onClick={deleteAllChats}
                       type="button"
                       className="w-full cursor-pointer text-xs p-2 text-error hover:bg-light-bg-secondary dark:hover:bg-dark-bg-secondary transition-colors tracking-wider flex items-center gap-2"
                       disabled={chats.length === 0}
@@ -293,7 +265,11 @@ export default function Sidebar() {
                     key={chat.id}
                     className={`${
                       editingChatId === chat.id && "bg-light-bg-surface dark:bg-dark-bg-surface"
+                    } ${
+                      currentChatId === chat.id &&
+                      "bg-secondary/10 dark:bg-primary/10 hover:border-secondary dark:hover:border-primary hover:bg-secondary/20 dark:hover:bg-primary/20 border border-secondary/20 dark:border-primary/20"
                     } hover:bg-light-bg-surface dark:hover:bg-dark-bg-surface transition-colors p-2 rounded-md flex items-center justify-between group cursor-pointer`}
+                    onClick={() => handleChatClick(chat.id)}
                     onMouseLeave={() => {
                       if (openChatOptions === chat.id) {
                         setOpenChatOptions(null);

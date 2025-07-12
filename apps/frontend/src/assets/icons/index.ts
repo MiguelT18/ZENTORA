@@ -38,6 +38,9 @@ import InfoIcon from "@/assets/icons/global/InfoIcon";
 import ClockIcon from "@/assets/icons/global/ClockIcon";
 import InfiniteIcon from "@/assets/icons/global/InfiniteIcon";
 import RocketIcon from "@/assets/icons/global/RocketIcon";
+import RobotIcon from "@/assets/icons/main/RobotIcon";
+import SendIcon from "@/assets/icons/main/SendIcon";
+import AIIcon from "@/assets/icons/main/AIIcon";
 
 export const ThemeIcons = {
   SunIcon,
@@ -89,4 +92,7 @@ export const MainIcons = {
   UserCheckIcon,
   SaveIcon,
   AlertIcon,
+  RobotIcon,
+  SendIcon,
+  AIIcon,
 };
