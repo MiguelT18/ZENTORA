@@ -102,7 +102,7 @@ export default function Home() {
   if (showLoading) return <Loading />;
 
   return (
-    <main className="h-dvh grid grid-cols-1 lg:grid-cols-[minmax(0.8,auto)_minmax(auto,3fr)_minmax(350px,1.25fr)]">
+    <main className="h-dvh grid grid-cols-1 lg:grid-cols-[minmax(0.8,auto)_minmax(auto,3fr)_minmax(350px,1.20fr)]">
       <Sidebar />
       <MarketChart view={mobileView} />
       <AIChat view={mobileView} />

@@ -18,3 +18,20 @@ export interface User {
 }
 
 export type view = "chart" | "chat";
+
+// Interfaces para activos
+export interface Asset {
+  id: string;
+  symbol: string;
+  name: string;
+  price: number;
+  change24h: number;
+  high24h: number;
+  low24h: number;
+  volume24h: number;
+  isFavorite: boolean;
+}
+
+export interface FavoriteAsset extends Asset {
+  addedAt: Date;
+}

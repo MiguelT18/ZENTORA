@@ -41,6 +41,8 @@ import RocketIcon from "@/assets/icons/global/RocketIcon";
 import RobotIcon from "@/assets/icons/main/RobotIcon";
 import SendIcon from "@/assets/icons/main/SendIcon";
 import AIIcon from "@/assets/icons/main/AIIcon";
+import FavoriteOnIcon from "@/assets/icons/main/FavoriteOnIcon";
+import FavoriteOffIcon from "@/assets/icons/main/FavoriteOffIcon";
 
 export const ThemeIcons = {
   SunIcon,
@@ -95,4 +97,6 @@ export const MainIcons = {
   RobotIcon,
   SendIcon,
   AIIcon,
+  FavoriteOnIcon,
+  FavoriteOffIcon,
 };

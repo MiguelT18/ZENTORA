@@ -54,7 +54,7 @@ export default function Modal({ isOpen, onClose, size = "md", children }: ModalP
     <dialog
       closedby="any"
       ref={dialogRef}
-      className={`backdrop:bg-black/50 backdrop:backdrop-blur-sm m-auto rounded-xl border-0 shadow-xl bg-light-bg-secondary dark:bg-dark-bg-secondary ${sizeClasses[size]} w-full max-h-[90dvh] overflow-hidden`}
+      className={`backdrop:bg-black/50 backdrop:backdrop-blur-sm m-auto rounded-xl border-0 shadow-xl bg-light-bg-secondary dark:bg-dark-bg-secondary ${sizeClasses[size]} w-full max-md:w-[90%] max-h-[90dvh] overflow-hidden`}
     >
       {renderContent()}
     </dialog>

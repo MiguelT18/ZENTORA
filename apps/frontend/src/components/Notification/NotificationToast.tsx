@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { motion } from "framer-motion";
+import { GlobalIcons } from "@/assets/icons";
 
 interface NotificationToastProps {
   id: string;
@@ -11,10 +12,10 @@ interface NotificationToastProps {
 }
 
 const toastTypeStyles = {
-  success: "bg-success/30 border-success/60 text-success",
-  error: "bg-error/30 border-error/60 text-error",
-  warning: "bg-warning/30 border-warning/60 text-warning",
-  info: "bg-info/30 border-info/60 text-info",
+  success: "bg-success/20 border-success/50 text-success",
+  error: "bg-error/20 border-error/50 text-error",
+  warning: "bg-warning/20 border-warning/50 text-warning",
+  info: "bg-info/20 border-info/50 text-info",
 };
 
 export function NotificationToast({ id, type, message, onRemove }: NotificationToastProps) {
@@ -38,20 +39,7 @@ export function NotificationToast({ id, type, message, onRemove }: NotificationT
         onClick={() => onRemove(id)}
         className="ml-auto hover:opacity-70 transition-opacity cursor-pointer"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
+        <GlobalIcons.ExitIcon className="size-4" />
       </button>
 
       <span

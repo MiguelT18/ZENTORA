@@ -5,6 +5,7 @@ import { NotificationProvider } from "@/context/NotificationContext";
 import { NotificationContainer } from "@/components/Notification/NotificationContainer";
 import { AuthProvider } from "@/context/AuthContext";
 import { ChatProvider } from "@/context/ChatContext";
+import { AssetsProvider } from "@/context/AssetsContext";
 
 export const metadata: Metadata = {
   title: "Bienvenido a Zentora",
@@ -22,10 +23,12 @@ export default function RootLayout({
         <NotificationProvider>
           <AuthProvider>
             <ChatProvider>
-              <ThemeProvider>
-                <NotificationContainer />
-                {children}
-              </ThemeProvider>
+              <AssetsProvider>
+                <ThemeProvider>
+                  <NotificationContainer />
+                  {children}
+                </ThemeProvider>
+              </AssetsProvider>
             </ChatProvider>
           </AuthProvider>
         </NotificationProvider>
