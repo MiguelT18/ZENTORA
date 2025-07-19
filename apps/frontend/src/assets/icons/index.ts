@@ -43,6 +43,7 @@ import SendIcon from "@/assets/icons/main/SendIcon";
 import AIIcon from "@/assets/icons/main/AIIcon";
 import FavoriteOnIcon from "@/assets/icons/main/FavoriteOnIcon";
 import FavoriteOffIcon from "@/assets/icons/main/FavoriteOffIcon";
+import CandlestickIcon from "@/assets/icons/main/CandlestickIcon";
 
 export const ThemeIcons = {
   SunIcon,
@@ -99,4 +100,5 @@ export const MainIcons = {
   AIIcon,
   FavoriteOnIcon,
   FavoriteOffIcon,
+  CandlestickIcon,
 };

@@ -107,7 +107,7 @@ export default function Home() {
       <MarketChart view={mobileView} />
       <NexaChat view={mobileView} />
 
-      <div className="lg:hidden flex items-center fixed left-1/2 -translate-x-1/2 bottom-4 dark:bg-dark-bg-surface/50 bg-light-bg-surface p-0.5 dark:border-dark-bg-surface border-light-bg-surface border-1 backdrop-blur-sm rounded-full">
+      <div className="lg:hidden flex items-center fixed z-10 left-1/2 -translate-x-1/2 bottom-4 dark:bg-dark-bg-surface/50 bg-light-bg-surface p-0.5 dark:border-dark-bg-surface border-light-bg-surface border-1 backdrop-blur-sm rounded-full">
         <button
           onClick={() => setMobileView("chart")}
           className={`px-4 py-2 rounded-full text-sm tracking-wider transition-all duration-300 ease-in-out transform

@@ -68,7 +68,7 @@ export default function Sidebar() {
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="size-9 cursor-pointer bg-light-bg dark:bg-dark-bg border-light-bg-surface border p-2 rounded-md hover:bg-light-bg-surface/50 transition-colors dark:border-dark-bg-surface dark:hover:bg-dark-bg-surface/50"
+            className="size-9 cursor-pointer bg-light-bg dark:bg-dark-bg border-light-bg-surface border p-2 rounded-md hover:bg-light-bg-surface/50 transition-colors dark:border-dark-bg-surface dark:hover:bg-dark-bg-surface/50 outline-none"
           >
             {isCollapsed ? (
               <MainIcons.MenuUnfoldIcon className="size-full" />

@@ -259,7 +259,7 @@ export default function MarketAssetsModal(props: MarketAssetsModalProps) {
                       onClick={() => handlePageChange(pageNumber)}
                       className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
                         currentPage === pageNumber
-                          ? "bg-secondary dark:bg-primary text-white"
+                          ? "bg-secondary dark:bg-primary text-white hover:cursor-not-allowed"
                           : "text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text-primary dark:hover:text-dark-text-primary hover:bg-light-bg-surface dark:hover:bg-dark-bg-surface cursor-pointer"
                       }`}
                     >

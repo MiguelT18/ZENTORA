@@ -130,7 +130,7 @@ export default function NexaChat({ view }: { view: view }) {
   return (
     <aside
       className={`${
-        view === "chat" ? "block" : "hidden"
+        view === "chat" ? "block" : "max-lg:hidden"
       } inset-0 lg:static grid grid-rows-[auto_1fr_auto] h-dvh bg-light-bg-secondary dark:bg-dark-bg-secondary`}
     >
       <header className="p-4">

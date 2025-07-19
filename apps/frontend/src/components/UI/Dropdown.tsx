@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface DropdownMenuProps {
@@ -41,6 +41,8 @@ export function AnimatedDropdown({
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const [inDialog, setInDialog] = useState(false);
   const [dialogElement, setDialogElement] = useState<HTMLElement | null>(null);
+  const [dropdownWidth, setDropdownWidth] = useState(0);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Detectar si el trigger está dentro de un <dialog>
   useEffect(() => {
@@ -103,8 +105,16 @@ export function AnimatedDropdown({
           }
 
           if (position === "right") {
+            // Ajustar para que el borde derecho del dropdown coincida con el borde derecho del trigger
+            let dropdownW = dropdownWidth;
+            if (!dropdownW && dropdownRef.current) {
+              dropdownW = dropdownRef.current.offsetWidth;
+            }
             left =
-              triggerRect.right - (inDialog ? dialogElement?.getBoundingClientRect().left || 0 : 0);
+              triggerRect.left +
+              triggerRect.width -
+              dropdownW -
+              (inDialog ? dialogElement?.getBoundingClientRect().left || 0 : 0);
           } else if (position === "left") {
             left =
               triggerRect.left - (inDialog ? dialogElement?.getBoundingClientRect().left || 0 : 0);
@@ -128,7 +138,14 @@ export function AnimatedDropdown({
       updatePosition();
       setTimeout(updatePosition, 10);
     }
-  }, [isOpen, position, portalContainer, triggerRef, inDialog, dialogElement]);
+  }, [isOpen, position, portalContainer, triggerRef, inDialog, dialogElement, dropdownWidth]);
+
+  // Medir el ancho del dropdown cuando se renderiza
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      setDropdownWidth(dropdownRef.current.offsetWidth);
+    }
+  }, [isOpen, children]);
 
   let positionClass =
     "absolute bg-light-bg dark:bg-dark-bg border border-light-bg-surface dark:border-dark-bg-surface py-1 rounded-lg shadow-lg w-fit z-[9999]";
@@ -146,6 +163,7 @@ export function AnimatedDropdown({
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          ref={dropdownRef}
           style={{
             position: "absolute",
             top: dropdownPosition.top,

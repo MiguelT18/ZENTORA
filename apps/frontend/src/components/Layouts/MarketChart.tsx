@@ -18,9 +18,14 @@ export default function MarketChart({ view }: { view: view }) {
   const [optionsDropdownOpen, setOptionsDropdownOpen] = useState(false);
   const [timeframeDropdownOpen, setTimeframeDropdownOpen] = useState(false);
   const [chartTypeDropdownOpen, setChartTypeDropdownOpen] = useState(false);
-  const [selectedTimeframe, setSelectedTimeframe] = useState("1d");
-  const [selectedChartType, setSelectedChartType] = useState("candlestick");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [selectedControls, setSelectedControls] = useState({
+    timeframe: "1d",
+    chartType: "candlestick",
+    drawTool: "cursor",
+    indicator: "",
+    more: "",
+  });
 
   // Referencias para los dropdowns
   const drawingDropdownRef = useRef<HTMLButtonElement>(null);
@@ -81,7 +86,7 @@ export default function MarketChart({ view }: { view: view }) {
         horzLines: { color: isDark ? "#1e1e1e" : "#eeeeee" },
       },
       crosshair: {
-        mode: 1,
+        mode: 0,
         vertLine: {
           color: isDark ? "#6366f1" : "#14b8a6",
           width: 1,
@@ -198,25 +203,6 @@ export default function MarketChart({ view }: { view: view }) {
     };
   }, [selectedAsset]);
 
-  // Opciones para los dropdowns
-  const timeframeOptions = [
-    { value: "1m", label: "1m" },
-    { value: "5m", label: "5m" },
-    { value: "15m", label: "15m" },
-    { value: "1h", label: "1h" },
-    { value: "4h", label: "4h" },
-    { value: "1d", label: "1D" },
-    { value: "1w", label: "1W" },
-    { value: "1M", label: "1M" },
-  ];
-
-  const chartTypeOptions = [
-    { value: "candlestick", label: "Velas" },
-    { value: "line", label: "Líneas" },
-    { value: "area", label: "Áreas" },
-    { value: "bars", label: "Barras" },
-  ];
-
   // Función para cerrar todos los dropdowns
   const closeAllDropdowns = () => {
     setDrawingDropdownOpen(false);
@@ -279,11 +265,11 @@ export default function MarketChart({ view }: { view: view }) {
       timeframeDropdownOpen ||
       chartTypeDropdownOpen
     ) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("click", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
     };
   }, [
     drawingDropdownOpen,
@@ -297,7 +283,7 @@ export default function MarketChart({ view }: { view: view }) {
     <aside
       className={`${
         view === "chart" ? "max-lg:block" : "max-lg:hidden"
-      } min-w-0 overflow-hidden w-full h-full flex flex-col`}
+      } min-w-0 overflow-hidden size-full flex flex-col`}
     >
       {/* Modal para añadir activos */}
       <MarketAssetsModal
@@ -321,9 +307,10 @@ export default function MarketChart({ view }: { view: view }) {
           <section className="w-full h-full flex flex-col">
             {/* Barra de navegación del gráfico */}
             <MarketChartControls
+              selectedControls={selectedControls}
+              setSelectedControls={setSelectedControls}
               chartTypeDropdownOpen={chartTypeDropdownOpen}
               chartTypeDropdownRef={chartTypeDropdownRef}
-              chartTypeOptions={chartTypeOptions}
               drawingDropdownOpen={drawingDropdownOpen}
               drawingDropdownRef={drawingDropdownRef}
               indicatorsDropdownOpen={indicatorsDropdownOpen}
@@ -331,15 +318,10 @@ export default function MarketChart({ view }: { view: view }) {
               openDropdown={openDropdown}
               optionsDropdownOpen={optionsDropdownOpen}
               optionsDropdownRef={optionsDropdownRef}
-              selectedChartType={selectedChartType}
-              selectedTimeframe={selectedTimeframe}
               setChartTypeDropdownOpen={setChartTypeDropdownOpen}
-              setSelectedChartType={setSelectedChartType}
-              setSelectedTimeframe={setSelectedTimeframe}
               setTimeframeDropdownOpen={setTimeframeDropdownOpen}
               timeframeDropdownOpen={timeframeDropdownOpen}
               timeframeDropdownRef={timeframeDropdownRef}
-              timeframeOptions={timeframeOptions}
             />
 
             <div
@@ -363,8 +345,6 @@ export default function MarketChart({ view }: { view: view }) {
           </div>
         )}
       </main>
-
-      <footer className="min-w-0"></footer>
     </aside>
   );
 }
