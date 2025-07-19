@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import Loading from "./loading";
 import Sidebar from "@/components/Layouts/Sidebar";
 import MarketChart from "@/components/Layouts/MarketChart";
-import AIChat from "@/components/Layouts/AIChat";
+import NexaChat from "@/components/Layouts/NexaChat";
 
 export default function Home() {
   const { addNotification } = useNotification();
@@ -105,7 +105,7 @@ export default function Home() {
     <main className="h-dvh grid grid-cols-1 lg:grid-cols-[minmax(0.8,auto)_minmax(auto,3fr)_minmax(350px,1.20fr)]">
       <Sidebar />
       <MarketChart view={mobileView} />
-      <AIChat view={mobileView} />
+      <NexaChat view={mobileView} />
 
       <div className="lg:hidden flex items-center fixed left-1/2 -translate-x-1/2 bottom-4 dark:bg-dark-bg-surface/50 bg-light-bg-surface p-0.5 dark:border-dark-bg-surface border-light-bg-surface border-1 backdrop-blur-sm rounded-full">
         <button

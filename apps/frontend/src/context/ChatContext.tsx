@@ -1,34 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
-
-// Interfaz para el tipo de chat
-interface Chat {
-  id: string;
-  title: string;
-  messages: Array<{
-    id: string;
-    content: string;
-    role: "user" | "assistant";
-    timestamp: Date;
-  }>;
-}
-
-interface ChatContextType {
-  chats: Chat[];
-  currentChatId: string | null;
-  currentChat: Chat | null;
-  createNewChat: () => string;
-  deleteChat: (chatId: string) => void;
-  deleteAllChats: () => void;
-  renameChat: (chatId: string, newTitle: string) => void;
-  addMessageToCurrentChat: (message: { content: string; role: "user" | "assistant" }) => void;
-  addMessageToChat: (
-    chatId: string,
-    message: { content: string; role: "user" | "assistant" }
-  ) => void;
-  setCurrentChat: (chatId: string) => void;
-}
+import React, { createContext, useContext, useState } from "react";
+import type { Chat, ChatContextType, ChatProviderProps } from "@/utils/types";
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
@@ -40,13 +13,10 @@ export const useChat = () => {
   return context;
 };
 
-interface ChatProviderProps {
-  children: ReactNode;
-}
-
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [openChatOptions, setOpenChatOptions] = useState<string | null>(null);
 
   const currentChat = chats.find((chat) => chat.id === currentChatId) || null;
 
@@ -145,6 +115,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     chats,
     currentChatId,
     currentChat,
+    openChatOptions,
     createNewChat,
     deleteChat,
     deleteAllChats,
@@ -152,6 +123,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     addMessageToCurrentChat,
     addMessageToChat,
     setCurrentChat,
+    setOpenChatOptions,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
